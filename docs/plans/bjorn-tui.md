@@ -103,7 +103,7 @@ Intent: edit via `$EDITOR` with hash-guarded overwrite and conflict handling,
 create with modal + editor, trash with confirm, restore, pin toggle, duplicate
 title warning after writes.
 Verify: `uv run pytest tests/test_edit.py tests/test_create_delete.py tests/test_pin.py`
-Status: [ ] not started
+Status: [x] done 2026-09-08 (11 passed)
 
 ### Phase 4 — Export and config
 Intent: Markdown export with destination prompt; `config.toml`; help modal;
