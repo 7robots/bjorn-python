@@ -580,11 +580,34 @@ class BjornApp(App[None]):
         self.notify(f"Exported to {written}", timeout=5)
 
 
-def run(*, tag: str | None = None, config_path: str | None = None, demo: bool = False) -> int:
+def cell_mouse_driver_class():
+    """Textual's Linux driver with in-band resize (mode 2048) never queried.
+
+    Textual switches the mouse to SGR-pixel reporting (mode 1016) as soon as a
+    terminal answers the 2048 query, and its parser then converts pixels to
+    cells with the pixel size from the 2048 report. SwiftTerm-based terminals
+    (Tecolot) report that size in device pixels but send mouse positions in
+    points, so every hover lands on the wrong row. Not asking about 2048 keeps
+    the mouse in cell mode; resizes still arrive through SIGWINCH.
+    """
+    from textual.drivers.linux_driver import LinuxDriver
+
+    class CellMouseLinuxDriver(LinuxDriver):
+        def _query_in_band_window_resize(self) -> None:  # noqa: D401
+            return None
+
+    return CellMouseLinuxDriver
+
+
+def run(*, tag: str | None = None, config_path: str | None = None, demo: bool = False, mouse_pixels: bool | None = None) -> int:
     config = Config.load(config_path)
+    if mouse_pixels is not None:
+        config.mouse_pixels = mouse_pixels
     client: BearClient | None = None
     if demo:
         client = BearClient([sys.executable, str(Path(__file__).with_name("fake_bearcli.py"))])
     app = BjornApp(config, client=client, workspace=tag)
+    if not config.mouse_pixels and sys.platform != "win32":
+        app.driver_class = cell_mouse_driver_class()
     app.run()
     return 0

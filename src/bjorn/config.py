@@ -7,7 +7,8 @@ Every key is optional. Example:
     poll_seconds = 5
     workspace = "techne"
     bearcli = "/usr/local/bin/bearcli"
-    icon_style = "auto"          # auto | nerd | emoji | none
+    icon_style = "auto"          # auto | nerd | emoji | lucide | none
+    mouse_pixels = true          # false works around SwiftTerm-based terminals (Tecolot)
 
     [icons]                      # top-level tag -> Lucide icon name or emoji:<glyph>
     techne = "terminal"
@@ -46,6 +47,10 @@ class Config:
     bearcli: str = ""
     icon_style: str = "auto"
     icons: dict[str, str] = field(default_factory=dict)
+    #: Let Textual use SGR-pixel mouse reporting when the terminal supports
+    #: in-band resize. Off for terminals that report pixel geometry and mouse
+    #: position in different units (SwiftTerm/Tecolot, 2026-09).
+    mouse_pixels: bool = True
     path: Path | None = None
 
     @classmethod
@@ -71,6 +76,7 @@ class Config:
         icons = data.get("icons")
         if isinstance(icons, dict):
             cfg.icons = {str(k): str(v) for k, v in icons.items() if isinstance(v, str)}
+        cfg.mouse_pixels = bool(data.get("mouse_pixels", True))
         return cfg
 
 

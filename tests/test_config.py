@@ -20,13 +20,32 @@ def test_config_values_are_read(tmp_path):
         'icon_style = "Nerd"\n[icons]\ntechne = "terminal"\nveritas = "emoji:🎓"\nbad = 3\n'
     )
     cfg = Config.load(path)
-    assert cfg.icon_style == "nerd"
-    assert cfg.icons == {"techne": "terminal", "veritas": "emoji:🎓"}
     assert cfg.editor == "nvim"
     assert cfg.export_dir == Path("~/exports").expanduser()
     assert cfg.poll_seconds == 0
     assert cfg.workspace == "techne"
     assert cfg.bearcli == "/opt/bearcli"
+    assert cfg.icon_style == "nerd"
+    assert cfg.icons == {"techne": "terminal", "veritas": "emoji:🎓"}
+    assert cfg.mouse_pixels is True
+    path.write_text("mouse_pixels = false\n")
+    assert Config.load(path).mouse_pixels is False
+
+
+def test_cell_mouse_driver_skips_the_in_band_resize_query():
+    from bjorn.app import cell_mouse_driver_class
+    from textual.drivers.linux_driver import LinuxDriver
+
+    cls = cell_mouse_driver_class()
+    assert issubclass(cls, LinuxDriver)
+    assert cls._query_in_band_window_resize is not LinuxDriver._query_in_band_window_resize
+    written: list[str] = []
+    fake = cls.__new__(cls)
+    fake.write = written.append  # type: ignore[method-assign]
+    fake._query_in_band_window_resize()
+    assert written == []
+    LinuxDriver._query_in_band_window_resize(fake)
+    assert written == ["\x1b[?2048$p"]
 
 
 def test_bad_poll_falls_back(tmp_path):

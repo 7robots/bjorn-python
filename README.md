@@ -58,6 +58,7 @@ poll_seconds = 5              # 0 disables the background refresh
 workspace = "techne"          # start scoped to this tag
 bearcli = "/usr/local/bin/bearcli"
 icon_style = "auto"           # auto | nerd | emoji | lucide | none
+mouse_pixels = true           # set false in Tecolot / SwiftTerm terminals (see below)
 
 [icons]                       # top-level tag -> Lucide icon name, or emoji:<glyph>
 techne = "terminal"
@@ -97,6 +98,16 @@ unaffected.
 
 The poll is cheap: two `bearcli list` probes (about 40 ms) and a full reload
 only when something changed.
+
+### Mouse hover on the wrong row (Tecolot, SwiftTerm)
+
+Textual switches to pixel-precise mouse reporting (mode 1016) when a terminal
+supports in-band resize (mode 2048) and converts pixels to cells with the size
+from that report. SwiftTerm-based terminals report the size in device pixels
+but the mouse position in points, so on a Retina display the hover lands at
+half the pointer's row. Until SwiftTerm fixes it, set `mouse_pixels = false` in
+config or run `bjorn --no-mouse-pixels`: Bjorn then never asks about 2048 and
+the mouse stays in cell mode. `tools/mouseprobe.py` shows the raw reports.
 
 ## Development
 
