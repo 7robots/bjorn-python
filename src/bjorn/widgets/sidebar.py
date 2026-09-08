@@ -10,17 +10,19 @@ from textual.widgets import Label, ListItem, ListView, Static, Tree
 from textual.widgets.tree import TreeNode
 
 from ..bear import Snapshot, display_tag
+from ..icons import IconSet
 from ..model import TagNode, View, build_tag_tree, view_counts
 
 
 class ViewItem(ListItem):
-    def __init__(self, view: View, count: int) -> None:
+    def __init__(self, view: View, count: int, icon: str = "") -> None:
         super().__init__(id=f"view-{view.value}")
         self.view = view
         self.count = count
+        self.icon = icon
 
     def _text(self) -> Text:
-        return Text.assemble((f"{self.view.hotkey} ", "dim"), self.view.label, (f"  {self.count}", "dim"))
+        return Text.assemble(self.icon, self.view.label, (f"  {self.count}", "dim"), (f"  {self.view.hotkey}", "dim"))
 
     def compose(self) -> ComposeResult:
         yield Label(self._text(), id=f"label-{self.view.value}")
@@ -83,18 +85,22 @@ class Sidebar(Vertical):
             super().__init__()
             self.tag = tag
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, icons: IconSet | None = None, **kwargs) -> None:
         super().__init__(**kwargs)
+        self.icons = icons or IconSet("none")
         self._workspace = ""
         self._suppress = False
 
     def compose(self) -> ComposeResult:
         yield Static("BJORN", id="sidebar-header")
-        yield ListView(*[ViewItem(v, 0) for v in View], id="views")
+        yield ListView(*[ViewItem(v, 0, self.icons.for_view(v.value)) for v in View], id="views")
         yield Static("TAGS", id="tags-label")
         tree: Tree[str] = Tree("Tags", id="tags")
         tree.show_root = False
         tree.guide_depth = 2
+        # A click on a tag selects it; only the arrow (or space) toggles the
+        # subtree. With auto_expand a click collapsed the tag it was aiming at.
+        tree.auto_expand = False
         yield tree
 
     @property
@@ -131,7 +137,8 @@ class Sidebar(Vertical):
 
     def _fill(self, parent: TreeNode, node: TagNode, expand_depth: int, depth: int = 0) -> None:
         for child in node.sorted_children():
-            label = Text.assemble(child.name, (f" {child.count}", "dim"))
+            icon = self.icons.for_tag(child.path) if "/" not in child.path else ""
+            label = Text.assemble(icon, child.name, (f" {child.count}", "dim"))
             if child.children:
                 tn = parent.add(label, data=child.path, expand=depth < expand_depth)
                 self._fill(tn, child, expand_depth, depth + 1)

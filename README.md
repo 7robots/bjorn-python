@@ -31,7 +31,7 @@ bjorn --demo          # sample notes through a built-in fake bearcli, no Bear ne
 |---|---|---|---|
 | `tab` / `shift+tab` | cycle panes | `/` | search (Bear syntax) |
 | `j` `k` `↑` `↓` | move within a pane | `esc` | clear the search |
-| `enter` | read the highlighted note | `1`–`7` | Notes, Untagged, Todo, Today, Pinned, Archive, Trash |
+| `enter` / click | read the highlighted note / highlight it | `1`–`7` | Notes, Untagged, Todo, Today, Pinned, Archive, Trash |
 | `n` | new note (title, tags), then edit | `d` | move the note to the trash |
 | `e` | edit in `$EDITOR` | `u` | restore from Trash or Archive |
 | `p` | toggle the global pin | `x` | export as Markdown |
@@ -57,7 +57,19 @@ export_dir = "~/Downloads"    # where `x` proposes to write
 poll_seconds = 5              # 0 disables the background refresh
 workspace = "techne"          # start scoped to this tag
 bearcli = "/usr/local/bin/bearcli"
+icon_style = "auto"           # auto | nerd | emoji | none
+
+[icons]                       # top-level tag -> Lucide icon name, or emoji:<glyph>
+techne = "terminal"
+veritas = "emoji:🎓"
 ```
+
+Top-level tags and the smart views carry icons: Nerd Font (Material Design)
+glyphs when the terminal is Ghostty or WezTerm or a Nerd Font is installed,
+emoji otherwise. Built-in defaults cover `veritas`, `techne`, `anthologia`,
+`melete`, `poietikos`, `kybernetes`, `architekton` and `publish`; anything else
+gets a tag glyph. Names are Lucide's (`bot`, `book-open`, `compass`, ...); see
+`src/bjorn/icons.py` for the table.
 
 The poll is cheap: two `bearcli list` probes (about 40 ms) and a full reload
 only when something changed.

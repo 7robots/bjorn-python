@@ -7,6 +7,11 @@ Every key is optional. Example:
     poll_seconds = 5
     workspace = "techne"
     bearcli = "/usr/local/bin/bearcli"
+    icon_style = "auto"          # auto | nerd | emoji | none
+
+    [icons]                      # top-level tag -> Lucide icon name or emoji:<glyph>
+    techne = "terminal"
+    veritas = "emoji:🎓"
 """
 
 from __future__ import annotations
@@ -39,6 +44,8 @@ class Config:
     poll_seconds: int = DEFAULT_POLL_SECONDS
     workspace: str = ""
     bearcli: str = ""
+    icon_style: str = "auto"
+    icons: dict[str, str] = field(default_factory=dict)
     path: Path | None = None
 
     @classmethod
@@ -60,6 +67,10 @@ class Config:
             cfg.poll_seconds = DEFAULT_POLL_SECONDS
         cfg.workspace = str(data.get("workspace", "") or "").strip().strip("#")
         cfg.bearcli = str(data.get("bearcli", "") or "").strip()
+        cfg.icon_style = str(data.get("icon_style", "auto") or "auto").strip().lower()
+        icons = data.get("icons")
+        if isinstance(icons, dict):
+            cfg.icons = {str(k): str(v) for k, v in icons.items() if isinstance(v, str)}
         return cfg
 
 

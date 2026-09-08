@@ -64,6 +64,21 @@ class NoteItem(ListItem):
         yield Label(details, classes="note-details")
 
 
+class NotesListView(ListView):
+    """A ListView whose Enter opens the note in the reader while a mouse click
+    only moves the highlight. Textual's ListView reports both as `Selected`, so
+    the keyboard path is intercepted here before that message exists."""
+
+    class Opened(Message):
+        def __init__(self, index: int) -> None:
+            super().__init__()
+            self.index = index
+
+    def action_select_cursor(self) -> None:
+        if self.index is not None:
+            self.post_message(self.Opened(self.index))
+
+
 class NoteList(Vertical):
     DEFAULT_CSS = """
     NoteList {
@@ -142,12 +157,12 @@ class NoteList(Vertical):
     def compose(self) -> ComposeResult:
         yield Static("NOTES", id="notes-header")
         yield Input(placeholder="Search (Bear syntax) — enter to run, esc to clear", id="search")
-        yield ListView(id="notes")
+        yield NotesListView(id="notes")
         yield Static("No notes", id="empty")
 
     @property
-    def list_view(self) -> ListView:
-        return self.query_one("#notes", ListView)
+    def list_view(self) -> NotesListView:
+        return self.query_one("#notes", NotesListView)
 
     @property
     def search_input(self) -> Input:
@@ -234,6 +249,6 @@ class NoteList(Vertical):
         item = event.item
         self.post_message(self.Highlighted(item.note if isinstance(item, NoteItem) else None))
 
-    def on_list_view_selected(self, event: ListView.Selected) -> None:
-        if event.list_view is self.list_view and isinstance(event.item, NoteItem):
-            self.post_message(self.Opened(event.item.note))
+    def on_notes_list_view_opened(self, event: NotesListView.Opened) -> None:
+        if 0 <= event.index < len(self._notes):
+            self.post_message(self.Opened(self._notes[event.index]))

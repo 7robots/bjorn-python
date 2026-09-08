@@ -22,6 +22,7 @@ from textual.widgets import Footer, Input, ListView, Tree
 from .bear import BearClient, BearError, Note, NoteContent, Probe, Snapshot, display_tag, normalize_tag, resolve_bearcli
 from .config import Config, editor_available, resolve_editor
 from .export import default_export_path, export_markdown, safe_filename
+from .icons import IconSet
 from .model import Selection, View, duplicate_titles, select_notes
 from .render import AUTO_COMPLETE_LINES, BROWSE_LINES
 from .widgets.modals import ConfirmScreen, HelpScreen, NewNotePrompt, TextPrompt
@@ -77,6 +78,7 @@ class BjornApp(App[None]):
         self.config = config or Config()
         self.client = client or BearClient(resolve_bearcli(self.config.bearcli))
         self.environ = dict(os.environ if environ is None else environ)
+        self.icons = IconSet(self.config.icon_style, self.config.icons, self.environ)
         self.snapshot = Snapshot()
         ws = self.config.workspace if workspace is None else workspace
         self.selection = Selection(workspace=normalize_tag(ws or ""))
@@ -99,7 +101,7 @@ class BjornApp(App[None]):
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="columns"):
-            yield Sidebar(id="sidebar")
+            yield Sidebar(icons=self.icons, id="sidebar")
             yield NoteList(id="note-list")
             yield NoteView(id="note-view")
         yield Footer()

@@ -70,3 +70,26 @@ async def test_help_screen_opens_and_closes(make_app):
         await pilot.press("escape")
         await pilot.pause()
         assert type(app.screen).__name__ == "Screen"
+
+
+async def test_mouse_click_selects_without_stealing_focus(make_app):
+    app = make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        await loaded(app, pilot)
+        items = list(app.note_list.list_view.query("NoteItem"))
+        await pilot.click(items[2])
+        await wait_until(lambda: app.note_view.note is not None and app.note_view.note.id == items[2].note.id)
+        assert app.focused is app.note_list.list_view
+        await pilot.press("enter")
+        await pilot.pause()
+        assert app.focused is app.note_view.scroll_view
+        tree = app.sidebar.tree
+        home = tree.root.children[0]
+        assert home.is_expanded
+        await pilot.click(tree, offset=(4, 0))
+        await wait_until(lambda: app.selection.tag == "home")
+        assert home.is_expanded, "clicking a tag must select it, not collapse it"
+        assert app.focused is tree
+        await pilot.click("#view-untagged")
+        await wait_until(lambda: titles(app) == ["Loose Thought"])
+        assert app.focused is app.sidebar.views
