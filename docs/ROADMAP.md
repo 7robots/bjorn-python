@@ -3,9 +3,10 @@
 Single source of truth for planned and deferred work. The active plan lives in
 `docs/plans/`.
 
-## Active plan
+## Completed plans
 
-- Todo triage: `docs/plans/bjorn-triage.md` (approved 2026-09-08).
+- Bjorn TUI: `docs/plans/bjorn-tui.md` (2026-09-08).
+- Todo triage: `docs/plans/bjorn-triage.md` (2026-09-08).
 
 ## Next
 

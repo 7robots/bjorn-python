@@ -97,7 +97,12 @@ Reminders with `list = "Bjorn Scratch"`, `a` on one row, confirm the reminder
 in Reminders.app carries the `bear-todo:` line, complete it there, `r`, see the
 row marked done, `x` it; delete the scratch list and note. Full suite once.
 Verify: `uv run pytest && uv run bjorn --tag techne` (checklist above)
-Status: [ ] not started
+Status: [x] done 2026-09-08 — run headlessly against the live database and live
+remctl with a "Bjorn Scratch" list: 7 triage rows = bearcli's open-box total
+over the 2 `@todo #techne` notes; enter landed on the probe note; b sent
+`app open --header Glazing`; two marked rows ticked in Bear after the confirm;
+`a` created a reminder carrying `bear-todo: <key>`; completed via remctl, `r`
+showed ✓, `x` ticked it in Bear; reminder, list and note removed. 87 tests pass.
 
 ## Deferred (see docs/ROADMAP.md)
 
