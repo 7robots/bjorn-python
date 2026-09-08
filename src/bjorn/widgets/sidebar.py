@@ -65,8 +65,8 @@ class Sidebar(Vertical):
         border: none;
     }
     Sidebar > #tags-label {
-        height: 1;
-        padding: 0 1;
+        height: 2;
+        padding: 1 1 0 1;
         color: $text-muted;
         text-style: bold;
     }

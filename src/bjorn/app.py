@@ -62,7 +62,7 @@ class BjornApp(App[None]):
         Binding("b", "open_in_bear", "Bear"),
         Binding("w", "toggle_workspace", "Workspace"),
         Binding("W", "clear_workspace", "Clear workspace", show=False),
-        Binding("f", "fold_tag", "Fold", show=False),
+        Binding("f", "fold_tag", "Fold"),
         Binding("j", "cursor(1)", "Down", show=False),
         Binding("k", "cursor(-1)", "Up", show=False),
     ] + [Binding(v.hotkey, f"view('{v.value}')", v.label, show=False) for v in View]
