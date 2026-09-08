@@ -85,7 +85,7 @@ Intent: `[reminders]` config, `reminders.py` (remctl client, link notes, key
 join), `fake_remctl.py`, `a` to add marked rows, status glyphs from the join,
 graceful off state when remctl is missing or disabled.
 Verify: `uv run pytest tests/test_reminders.py tests/test_triage_reminders.py && uv run pytest`
-Status: [ ] not started
+Status: [x] done 2026-09-08 (87 passed)
 
 ### Phase 9 — Acceptance gate
 Intent: one pass against the live database, Reminders mode on with a scratch

@@ -13,6 +13,12 @@ Every key is optional. Example:
     [icons]                      # top-level tag -> Lucide icon name or emoji:<glyph>
     tech = "terminal"
     school = "emoji:🎓"
+
+    [reminders]                  # triage can push todos to Apple Reminders (off by default)
+    enabled = false
+    list = "Bear"                # target list; remctl's default list when empty
+    due = "today"                # due date for new reminders; "" for none
+    remctl = ""                  # path to remctl; PATH when empty
 """
 
 from __future__ import annotations
@@ -39,6 +45,14 @@ def default_config_path() -> Path:
 
 
 @dataclass(slots=True)
+class RemindersConfig:
+    enabled: bool = False
+    list: str = ""
+    due: str = "today"
+    remctl: str = ""
+
+
+@dataclass(slots=True)
 class Config:
     editor: str = ""
     export_dir: Path = field(default_factory=lambda: Path.home() / "Downloads")
@@ -51,6 +65,7 @@ class Config:
     #: in-band resize. Off for terminals that report pixel geometry and mouse
     #: position in different units (SwiftTerm/Tecolot, 2026-09).
     mouse_pixels: bool = True
+    reminders: RemindersConfig = field(default_factory=RemindersConfig)
     path: Path | None = None
 
     @classmethod
@@ -77,6 +92,15 @@ class Config:
         if isinstance(icons, dict):
             cfg.icons = {str(k): str(v) for k, v in icons.items() if isinstance(v, str)}
         cfg.mouse_pixels = bool(data.get("mouse_pixels", True))
+        section = data.get("reminders")
+        if isinstance(section, dict):
+            due = section.get("due", "today")
+            cfg.reminders = RemindersConfig(
+                enabled=bool(section.get("enabled", False)),
+                list=str(section.get("list", "") or "").strip(),
+                due="" if due is None else str(due).strip(),
+                remctl=str(section.get("remctl", "") or "").strip(),
+            )
         return cfg
 
 

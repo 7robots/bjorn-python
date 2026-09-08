@@ -39,6 +39,7 @@ bjorn --demo          # sample notes through a built-in fake bearcli, no Bear ne
 | `p` | toggle the global pin | `x` | export as Markdown |
 | `b` | open in Bear.app | `w` | set the workspace; again to leave it |
 | `f` / `F` | fold / unfold a tag subtree / all tags | `W` | clear the workspace |
+| `t` | triage the workspace's open todos | | |
 | `r` | refresh now | `?` `q` | help, quit |
 
 The **workspace** is a tag subtree that scopes the whole app: the tag tree
@@ -48,6 +49,22 @@ filtered to it, and new notes default to it.
 Views are computed from one `bearcli list` snapshot, so the counts in the
 sidebar and the notes list always agree. **Pinned** means any pin, global or
 inside a tag. **Today** means modified today, local time.
+
+## Todo triage
+
+`t` opens a screen listing every open `- [ ]` item from the `@todo` notes in
+the workspace (all notes when none is set), grouped by note with the section
+each item sits under. `space` marks rows, `x` ticks the marked (or highlighted)
+items in Bear through `bearcli edit`, `enter` jumps to the note, `b` opens it
+in Bear.app at that section, `/` filters, `r` reloads, `esc` closes.
+
+With `[reminders] enabled = true` and [remctl](https://github.com/7robots/remctl)
+on your PATH, `a` also pushes marked items to Apple Reminders. Each reminder's
+notes carry the note's `bear://` link and a `bear-todo: <key>` line (the same
+scheme remtui uses, so reminders it created are recognised); on every load
+they are read back and rows show ⏰ for an open reminder or ✓ for one you
+completed in Reminders, ready to `x` in Bear. Nothing is written into Bear when
+a reminder is added.
 
 ## Configuration
 
@@ -66,6 +83,11 @@ mouse_pixels = true           # set false in Tecolot / SwiftTerm terminals (see 
 [icons]                       # top-level tag -> Lucide icon name, or emoji:<glyph>
 tech = "terminal"
 school = "emoji:🎓"
+
+[reminders]                   # triage can push todos to Apple Reminders
+enabled = false               # off by default
+list = "Bear"                 # target list; remctl's default when empty
+due = "today"                 # due date for new reminders; "" for none
 ```
 
 Top-level tags and the smart views carry icons: Nerd Font (Material Design)

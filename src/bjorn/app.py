@@ -24,6 +24,7 @@ from .config import Config, editor_available, resolve_editor
 from .export import default_export_path, export_markdown, safe_filename
 from .icons import IconSet
 from .model import Selection, View, duplicate_titles, select_notes
+from .reminders import RemctlClient, RemctlError, join as join_reminders, remctl_found, resolve_remctl
 from .render import AUTO_COMPLETE_LINES, BROWSE_LINES
 from .todos import scan_rows
 from .widgets.modals import ConfirmScreen, HelpScreen, NewNotePrompt, TextPrompt
@@ -76,12 +77,17 @@ class BjornApp(App[None]):
         config: Config | None = None,
         *,
         client: BearClient | None = None,
+        remctl: RemctlClient | None = None,
         workspace: str | None = None,
         environ: dict[str, str] | None = None,
     ) -> None:
         super().__init__()
         self.config = config or Config()
         self.client = client or BearClient(resolve_bearcli(self.config.bearcli))
+        self.remctl: RemctlClient | None = remctl
+        if self.remctl is None and self.config.reminders.enabled and remctl_found(self.config.reminders.remctl):
+            self.remctl = RemctlClient(resolve_remctl(self.config.reminders.remctl))
+        self._reminders_notice_shown = False
         self.environ = dict(os.environ if environ is None else environ)
         self.icons = IconSet(self.config.icon_style, self.config.icons, self.environ)
         self.snapshot = Snapshot()
@@ -426,11 +432,15 @@ class BjornApp(App[None]):
         if self.triage is not None:
             return
         scope = display_tag(self.selection.workspace) if self.selection.workspace else "all notes"
+        if self.config.reminders.enabled and self.remctl is None and not self._reminders_notice_shown:
+            self._reminders_notice_shown = True
+            self.notify("Reminders mode is configured but remctl was not found; triage runs Bear-only.", title="Reminders", severity="warning", timeout=6)
         self.push_screen(TriageScreen(scope_label=scope, reminders_enabled=self.reminders_enabled))
 
     @property
     def reminders_enabled(self) -> bool:
-        return False
+        return self.config.reminders.enabled and self.remctl is not None
+
 
     @on(TriageScreen.Reload)
     def _on_triage_reload(self) -> None:
@@ -446,8 +456,15 @@ class BjornApp(App[None]):
             self.notify(str(exc), title="Triage", severity="error", timeout=10)
             return
         scan = scan_rows(rows)
+        statuses: dict[str, tuple[str, int]] = {}
+        error = ""
+        if self.reminders_enabled and self.remctl is not None:
+            try:
+                statuses = join_reminders(scan.todos, await self.remctl.linked_reminders())
+            except RemctlError as exc:
+                error = f"Reminders unavailable: {exc}"
         if self.triage is screen:
-            await screen.show(scan)
+            await screen.show(scan, statuses=statuses, error=error)
 
     @on(TriageScreen.Tick)
     def _on_triage_tick(self, event: TriageScreen.Tick) -> None:
@@ -510,7 +527,31 @@ class BjornApp(App[None]):
 
     @on(TriageScreen.AddReminders)
     def _on_triage_add(self, event: TriageScreen.AddReminders) -> None:
-        self.notify("Reminders mode is off ([reminders] enabled = true in config).", timeout=4)
+        if not self.reminders_enabled or self.remctl is None:
+            self.notify("Reminders mode is off ([reminders] enabled = true in config).", timeout=4)
+            return
+        self.run_worker(functools.partial(self._triage_add, event.rows), name="triage-add", exclusive=False)
+
+    async def _triage_add(self, rows: list[TriageRow]) -> None:
+        assert self.remctl is not None
+        cfg = self.config.reminders
+        added = 0
+        failures: list[str] = []
+        for row in rows:
+            try:
+                await self.remctl.add(row.todo, list_title=cfg.list, due=cfg.due)
+                added += 1
+            except RemctlError as exc:
+                failures.append(f"{row.todo.text[:40]}: {exc}")
+        if failures:
+            self.notify("\n".join(failures), title="Some reminders were not created", severity="warning", timeout=10)
+        if added:
+            where = f" to “{cfg.list}”" if cfg.list else ""
+            self.notify(f"Added {added} reminder{'s' if added != 1 else ''}{where}.", timeout=3)
+        for row in rows:
+            row.marked = False
+        if self.triage is not None:
+            await self._triage_load()
 
     # -- actions: writes ------------------------------------------------------------------
 
@@ -731,9 +772,12 @@ def run(*, tag: str | None = None, config_path: str | None = None, demo: bool = 
     if mouse_pixels is not None:
         config.mouse_pixels = mouse_pixels
     client: BearClient | None = None
+    remctl: RemctlClient | None = None
     if demo:
         client = BearClient([sys.executable, str(Path(__file__).with_name("fake_bearcli.py"))])
-    app = BjornApp(config, client=client, workspace=tag)
+        config.reminders.enabled = True
+        remctl = RemctlClient([sys.executable, str(Path(__file__).with_name("fake_remctl.py"))])
+    app = BjornApp(config, client=client, remctl=remctl, workspace=tag)
     if not config.mouse_pixels and sys.platform != "win32":
         app.driver_class = cell_mouse_driver_class()
     app.run()
