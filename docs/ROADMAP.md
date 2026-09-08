@@ -16,6 +16,10 @@ Single source of truth for planned and deferred work. The active plan lives in
 
 ## Deferred
 
+- Notes list snippet line (first body line, as Bear shows) — needs content
+  for every listed note; cache-backed or via a bearcli field if one appears.
+- Permanent delete from the Trash view: bearcli has no command for it today.
+
 - Attachments: list per note, save to disk (`bearcli attachments`).
 - Tag management: rename / delete across notes (destructive, needs confirm).
 - Archive a note from the TUI (`bearcli archive`).

@@ -119,7 +119,11 @@ clear a workspace; create a note under `#techne/dev`, edit it in `$EDITOR`, conf
 the change in Bear.app, pin/unpin, export it as `.md` and open it,
 trash it, restore it from Trash, trash it again; quit. Full suite passes once.
 Verify: `uv run pytest && uv run bjorn` (checklist above)
-Status: [ ] not started
+Status: [~] 2026-09-08 — checklist run headlessly against the live database
+(990 notes; every smart-filter count matched bearcli; create, editor round trip,
+pin/unpin, export, trash, restore, trash all confirmed via bearcli; 54 tests
+pass). Still to do by hand in a real terminal: launch `uv run bjorn`, press `e`
+to confirm the suspend/resume hand-off to the editor, and eyeball the rendering.
 
 ## Deferred (see docs/ROADMAP.md)
 

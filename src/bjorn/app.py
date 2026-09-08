@@ -128,6 +128,8 @@ class BjornApp(App[None]):
     async def reload(self, *, keep_id: str | None = None, focus_id: str | None = None) -> None:
         """Take a fresh snapshot and redraw every pane around it."""
         async with self._reload_lock:
+            if not self.is_running:
+                return
             try:
                 snapshot = await self.client.snapshot()
             except BearError as exc:
@@ -139,6 +141,8 @@ class BjornApp(App[None]):
             self.loaded = True
             with contextlib.suppress(BearError):
                 self._last_probe = await self.client.probe()
+            if not self.is_running:
+                return
             current = self.note_list.current()
             await self.sidebar.populate(self.snapshot, self.selection.workspace, keep_tag=self.selection.tag)
             await self.apply_selection(keep_id=focus_id or keep_id or (current.id if current else None))
@@ -524,6 +528,8 @@ class BjornApp(App[None]):
         self.run_worker(self._toggle_pin(note), name="pin", exclusive=False)
 
     async def _toggle_pin(self, note: Note) -> None:
+        # The list item may predate the last reload; decide from the snapshot.
+        note = self.snapshot.by_id(note.id) or note
         try:
             if note.pinned_globally:
                 await self.client.unpin(note.id)
