@@ -23,7 +23,7 @@ git clone https://github.com/7robots/bjorn.git
 cd bjorn
 ./install.sh          # puts a `bjorn` launcher in ~/bin
 bjorn                 # or: uv run bjorn
-bjorn --tag techne    # start scoped to a tag subtree
+bjorn --tag work      # start scoped to a tag subtree
 bjorn --demo          # sample notes through a built-in fake bearcli, no Bear needed
 ```
 
@@ -58,21 +58,21 @@ key is optional:
 editor = "nvim"               # overrides $VISUAL / $EDITOR
 export_dir = "~/Downloads"    # where `x` proposes to write
 poll_seconds = 5              # 0 disables the background refresh
-workspace = "techne"          # start scoped to this tag
+workspace = "work"            # start scoped to this tag
 bearcli = "/usr/local/bin/bearcli"
 icon_style = "auto"           # auto | nerd | emoji | lucide | none
 mouse_pixels = true           # set false in Tecolot / SwiftTerm terminals (see below)
 
 [icons]                       # top-level tag -> Lucide icon name, or emoji:<glyph>
-techne = "terminal"
-veritas = "emoji:🎓"
+tech = "terminal"
+school = "emoji:🎓"
 ```
 
 Top-level tags and the smart views carry icons: Nerd Font (Material Design)
 glyphs when the terminal is Ghostty or WezTerm or a Nerd Font is installed,
-emoji otherwise. Built-in defaults cover `veritas`, `techne`, `anthologia`,
-`melete`, `poietikos`, `kybernetes`, `architekton` and `publish`; anything else
-gets a tag glyph. Names are Lucide's (`bot`, `book-open`, `compass`, ...); see
+emoji otherwise. Built-in defaults cover common top-level tags (`work`, `home`,
+`projects`, `ideas`, `journal`, `books`, `tech`, `garden`, `travel`, `health`,
+`music`, `robotics`, `school`); anything else gets a tag glyph. Names are Lucide's (`bot`, `book-open`, `compass`, ...); see
 `src/bjorn/icons.py` for the table.
 
 ### Lucide icons directly

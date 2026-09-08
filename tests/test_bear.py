@@ -10,10 +10,10 @@ from bjorn.bear import BearError, Location, Note, display_tag, normalize_tag
 
 
 def test_normalize_and_display_tag():
-    assert normalize_tag("#kybernetes/CAD and Design#") == "kybernetes/CAD and Design"
-    assert normalize_tag(" #techne ") == "techne"
-    assert display_tag("kybernetes/CAD and Design") == "#kybernetes/CAD and Design#"
-    assert display_tag("techne/dev") == "#techne/dev"
+    assert normalize_tag("#work/CAD and Design#") == "work/CAD and Design"
+    assert normalize_tag(" #tech ") == "tech"
+    assert display_tag("work/CAD and Design") == "#work/CAD and Design#"
+    assert display_tag("tech/dev") == "#tech/dev"
 
 
 def test_note_from_row_parses_bearcli_shapes():

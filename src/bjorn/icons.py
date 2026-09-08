@@ -164,14 +164,21 @@ def glyph_table(style: str) -> dict[str, str]:
 #: Icon names for top-level tags when the config says nothing. Unknown tags get
 #: DEFAULT_TAG_ICON.
 DEFAULT_TAG_ICONS: dict[str, str] = {
-    "veritas": "graduation-cap",
-    "techne": "code",
-    "anthologia": "book-open",
-    "melete": "flower",
-    "poietikos": "palette",
-    "kybernetes": "bot",
-    "architekton": "compass",
-    "publish": "globe",
+    "work": "briefcase",
+    "home": "home",
+    "projects": "folder",
+    "ideas": "lightbulb",
+    "journal": "notebook",
+    "books": "book-open",
+    "reading": "book-open",
+    "tech": "code",
+    "code": "code",
+    "garden": "leaf",
+    "travel": "compass",
+    "health": "heart",
+    "music": "music",
+    "robotics": "bot",
+    "school": "graduation-cap",
 }
 DEFAULT_TAG_ICON = "tag"
 

@@ -5,14 +5,14 @@ Every key is optional. Example:
     editor = "nvim"
     export_dir = "~/Documents/exports"
     poll_seconds = 5
-    workspace = "techne"
+    workspace = "work"
     bearcli = "/usr/local/bin/bearcli"
     icon_style = "auto"          # auto | nerd | emoji | lucide | none
     mouse_pixels = true          # false works around SwiftTerm-based terminals (Tecolot)
 
     [icons]                      # top-level tag -> Lucide icon name or emoji:<glyph>
-    techne = "terminal"
-    veritas = "emoji:🎓"
+    tech = "terminal"
+    school = "emoji:🎓"
 """
 
 from __future__ import annotations
