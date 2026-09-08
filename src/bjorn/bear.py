@@ -279,6 +279,16 @@ class BearClient:
             raise BearError("bearcli cat returned no content")
         return NoteContent(id=note_id, content=str(payload.get("content") or ""), hash=str(payload.get("hash") or ""))
 
+    async def todo_rows(self, workspace: str = "") -> list[dict[str, Any]]:
+        """Raw rows for every active note with an open todo, optionally only
+        under a tag. Content included; `todos.scan_rows` turns them into items."""
+        query = "@todo" + (f" #{normalize_tag(workspace)}" if normalize_tag(workspace) else "")
+        rows = await self._run(
+            "search", "--query", query, "--location", "notes",
+            "--format", "json", "--fields", "id,title,tags,locked,content",
+        )
+        return list(rows or [])
+
     async def tags(self) -> list[str]:
         rows = await self._run("tags", "list", "--format", "json")
         return [normalize_tag(str(r.get("tag"))) for r in rows or [] if r.get("tag")]

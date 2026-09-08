@@ -71,7 +71,7 @@ Intent: `todos.py` with `Todo`, `parse_todos`, keys and done-lines; `BearClient`
 gains `todo_notes(workspace)`; the fake bearcli gains `--fields content` on
 search (it has it) and an `edit --section` path that matches the real tool.
 Verify: `uv run pytest tests/test_todos.py`
-Status: [ ] not started
+Status: [x] done 2026-09-08 (5 passed)
 
 ### Phase 7 — Triage screen
 Intent: `t` opens the screen scoped to the workspace; grouped rows, cursor,

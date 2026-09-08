@@ -426,9 +426,27 @@ def cmd_edit(args, state):
         fail_text("Note not found")
     find = args.find.replace("\\n", "\n")
     content = note["content"]
-    if content.count(find) == 0:
+    start, end = 0, len(content)
+    if args.section:
+        heading = args.section.replace("\\n", "\n").strip()
+        lines = content.split("\n")
+        level = len(heading) - len(heading.lstrip("#"))
+        starts = [i for i, l in enumerate(lines) if l.strip() == heading]
+        if len(starts) != 1:
+            fail_text("Section not found" if not starts else "Section address is ambiguous")
+        first = starts[0]
+        last = len(lines)
+        for j in range(first + 1, len(lines)):
+            m = re.match(r"^(#{1,6}) ", lines[j])
+            if m and len(m.group(1)) <= level:
+                last = j
+                break
+        start = len("\n".join(lines[:first])) + (1 if first else 0)
+        end = len("\n".join(lines[:last]))
+    region = content[start:end]
+    if region.count(find) == 0:
         fail_text("Find text not found")
-    if content.count(find) > 1 and not args.all:
+    if region.count(find) > 1 and not args.all:
         fail_text("Find text matches more than once")
     if args.replace is not None:
         repl = args.replace.replace("\\n", "\n")
@@ -436,7 +454,8 @@ def cmd_edit(args, state):
         repl = ""
     else:
         fail_text("edit needs --replace or --delete")
-    note["content"] = content.replace(find, repl) if args.all else content.replace(find, repl, 1)
+    region = region.replace(find, repl) if args.all else region.replace(find, repl, 1)
+    note["content"] = content[:start] + region + content[end:]
     note["modified"] = now_iso()
     save_state(state)
 
