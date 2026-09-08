@@ -3,6 +3,8 @@ Bear mirror: 9473648C-66AF-4F3A-9621-C7472C38FC57
 
 Status: approved 2026-09-08.
 
+Implementation: initial phase complete
+
 A three-column terminal front end for Bear (tag browser, notes list, rendered note),
 built in Python with Textual, talking to Bear only through `bearcli`. Editing is
 delegated to `$VISUAL`/`$EDITOR`. Locked notes are out of scope. Todo triage (as in
@@ -120,11 +122,11 @@ clear a workspace; create a note under `#techne/dev`, edit it in `$EDITOR`, conf
 the change in Bear.app, pin/unpin, export it as `.md` and open it,
 trash it, restore it from Trash, trash it again; quit. Full suite passes once.
 Verify: `uv run pytest && uv run bjorn` (checklist above)
-Status: [~] 2026-09-08 — checklist run headlessly against the live database
+Status: [x] done 2026-09-08 — checklist run headlessly against the live database
 (990 notes; every smart-filter count matched bearcli; create, editor round trip,
 pin/unpin, export, trash, restore, trash all confirmed via bearcli; 54 tests
-pass). Still to do by hand in a real terminal: launch `uv run bjorn`, press `e`
-to confirm the suspend/resume hand-off to the editor, and eyeball the rendering.
+pass). Hand-run in Ghostty and Tecolot the same day: `e` opens vim and the
+saved change shows in Bear.app; rendering checked by eye.
 
 ## Deferred (see docs/ROADMAP.md)
 
