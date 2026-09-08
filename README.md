@@ -1,5 +1,7 @@
 # Bjorn
 
+![Bjorn: smart views and tags, notes list, rendered note](docs/screenshot.svg)
+
 A terminal front end for [Bear](https://bear.app), built with Python and
 [Textual](https://textual.textualize.io). Three columns, like the app: smart
 views and a nested tag tree on the left, the notes list in the middle, the
@@ -119,4 +121,5 @@ uv run bjorn --demo
 ```
 
 The plan and its status live in `docs/plans/bjorn-tui.md`; deferred work in
-`docs/ROADMAP.md`.
+`docs/ROADMAP.md`. `uv run python tools/screenshot.py` regenerates the
+screenshot above from an invented library through the fake bearcli.
