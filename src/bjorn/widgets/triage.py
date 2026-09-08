@@ -209,11 +209,6 @@ class TriageScreen(Screen[None]):
     def list_view(self) -> ListView:
         return self.query_one("#triage-list", ListView)
 
-    def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
-        if action == "add_reminders" and not self.state.reminders_enabled:
-            return None
-        return True
-
     # -- populate ----------------------------------------------------------------------
 
     async def show(self, scan: TodoScan, *, statuses: dict[str, tuple[Status, int | None]] | None = None, error: str = "") -> None:
@@ -340,6 +335,12 @@ class TriageScreen(Screen[None]):
             self.post_message(self.OpenInBear(row.todo))
 
     def action_add_reminders(self) -> None:
+        if not self.state.reminders_enabled:
+            self.notify(
+                "Reminders mode is off. Add to ~/.config/bjorn/config.toml:\n[reminders]\nenabled = true\nlist = \"<your list>\"",
+                title="Add to Reminders", severity="warning", timeout=8,
+            )
+            return
         rows = [r for r in self._targets() if r.status == "new"]
         if not rows:
             self.notify("Mark rows that are not in Reminders yet.", timeout=3)
