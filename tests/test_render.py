@@ -19,11 +19,11 @@ def test_bear_only_marks_are_flattened():
 
 
 def test_tag_line_is_recognised_and_styled():
-    assert is_tag_line("#kybernetes/Coding")
+    assert is_tag_line("#robotics/Coding")
     assert is_tag_line("#a #b/c #multi word#")
     assert not is_tag_line("# Heading")
     assert not is_tag_line("text with #tag inside")
-    assert preprocess("# T\n#kybernetes/Coding #techne\n\nbody") == "# T\n`#kybernetes/Coding` `#techne`\n\nbody"
+    assert preprocess("# T\n#robotics/Coding #tech\n\nbody") == "# T\n`#robotics/Coding` `#tech`\n\nbody"
 
 
 def test_head_of_and_snippet():
