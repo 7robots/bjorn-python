@@ -25,10 +25,12 @@ from .export import default_export_path, export_markdown, safe_filename
 from .icons import IconSet
 from .model import Selection, View, duplicate_titles, select_notes
 from .render import AUTO_COMPLETE_LINES, BROWSE_LINES
+from .todos import scan_rows
 from .widgets.modals import ConfirmScreen, HelpScreen, NewNotePrompt, TextPrompt
 from .widgets.note_list import NoteList
 from .widgets.note_view import NoteView
 from .widgets.sidebar import Sidebar
+from .widgets.triage import TriageRow, TriageScreen
 
 #: Delay between the list cursor moving and the note being fetched and rendered.
 PREVIEW_DEBOUNCE = 0.12
@@ -63,6 +65,7 @@ class BjornApp(App[None]):
         Binding("w", "toggle_workspace", "Workspace"),
         Binding("W", "clear_workspace", "Clear workspace", show=False),
         Binding("f", "fold_tag", "Fold"),
+        Binding("t", "triage", "Triage"),
         Binding("F", "fold_all", "Fold all", show=False),
         Binding("j", "cursor(1)", "Down", show=False),
         Binding("k", "cursor(-1)", "Up", show=False),
@@ -411,6 +414,103 @@ class BjornApp(App[None]):
         if not self.selection.workspace:
             return
         await self.set_workspace("")
+
+    # -- triage -----------------------------------------------------------------------------
+
+    @property
+    def triage(self) -> TriageScreen | None:
+        screen = self.screen
+        return screen if isinstance(screen, TriageScreen) else None
+
+    def action_triage(self) -> None:
+        if self.triage is not None:
+            return
+        scope = display_tag(self.selection.workspace) if self.selection.workspace else "all notes"
+        self.push_screen(TriageScreen(scope_label=scope, reminders_enabled=self.reminders_enabled))
+
+    @property
+    def reminders_enabled(self) -> bool:
+        return False
+
+    @on(TriageScreen.Reload)
+    def _on_triage_reload(self) -> None:
+        self.run_worker(self._triage_load, name="triage-load", group="triage-load", exclusive=True)
+
+    async def _triage_load(self) -> None:
+        screen = self.triage
+        if screen is None:
+            return
+        try:
+            rows = await self.client.todo_rows(self.selection.workspace)
+        except BearError as exc:
+            self.notify(str(exc), title="Triage", severity="error", timeout=10)
+            return
+        scan = scan_rows(rows)
+        if self.triage is screen:
+            await screen.show(scan)
+
+    @on(TriageScreen.Tick)
+    def _on_triage_tick(self, event: TriageScreen.Tick) -> None:
+        self.run_worker(functools.partial(self._triage_tick, event.rows), name="triage-tick", exclusive=False)
+
+    async def _triage_tick(self, rows: list[TriageRow]) -> None:
+        if len(rows) > 1:
+            ok = await self.push_screen_wait(ConfirmScreen(f"Tick {len(rows)} todos in Bear?", confirm_label="Tick"))
+            if not ok:
+                return
+        ticked: list[TriageRow] = []
+        failures: list[str] = []
+        for row in rows:
+            todo = row.todo
+            try:
+                await self.client.tick_todo(todo.note_id, todo.line, todo.done_line, section=todo.section)
+                ticked.append(row)
+            except BearError as exc:
+                failures.append(f"{todo.text[:40]}: {exc}")
+        screen = self.triage
+        if screen is not None and ticked:
+            screen.note_removed(ticked)
+        if failures:
+            self.notify("\n".join(failures), title="Some todos were not ticked (the line changed in Bear?)", severity="warning", timeout=10)
+        elif ticked:
+            self.notify(f"Ticked {len(ticked)} in Bear.", timeout=2)
+        self._content_cache.clear()
+        await self.reload()
+        if self.triage is not None:
+            await self._triage_load()
+
+    @on(TriageScreen.GoTo)
+    def _on_triage_goto(self, event: TriageScreen.GoTo) -> None:
+        self.run_worker(functools.partial(self._triage_goto, event.todo.note_id), name="triage-goto", exclusive=False)
+
+    async def _triage_goto(self, note_id: str) -> None:
+        if self.triage is not None:
+            self.pop_screen()
+        if not self.note_list.select_id(note_id):
+            self.search_query = ""
+            self.selection = Selection(view=View.ALL, workspace=self.selection.workspace)
+            self.sidebar.select_view(View.ALL)
+            await self.apply_selection(keep_id=note_id)
+            self.note_list.select_id(note_id)
+        self.note_list.list_view.focus()
+        current = self.current_note()
+        if current is not None:
+            self._schedule_preview(current, immediate=True)
+
+    @on(TriageScreen.OpenInBear)
+    def _on_triage_open(self, event: TriageScreen.OpenInBear) -> None:
+        todo = event.todo
+        self.run_worker(functools.partial(self._open_note_in_bear, todo.note_id, todo.header), name="open", exclusive=False)
+
+    async def _open_note_in_bear(self, note_id: str, header: str = "") -> None:
+        try:
+            await self.client.open_in_app(note_id, header=header)
+        except BearError as exc:
+            self.notify(str(exc), title="Open in Bear failed", severity="error", timeout=10)
+
+    @on(TriageScreen.AddReminders)
+    def _on_triage_add(self, event: TriageScreen.AddReminders) -> None:
+        self.notify("Reminders mode is off ([reminders] enabled = true in config).", timeout=4)
 
     # -- actions: writes ------------------------------------------------------------------
 

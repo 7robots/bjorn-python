@@ -70,6 +70,18 @@ async def test_todo_rows_scoped_by_workspace(client):
     assert "this is inside a code block" not in [t.text for t in scan.todos]
 
 
+async def test_tick_matches_the_whole_line(client):
+    await client.edit("NOTE-PLANNING", "- [ ] write the release notes", "- [ ] write the release notes tomorrow")
+    with pytest.raises(BearError):
+        await client.tick_todo("NOTE-PLANNING", "- [ ] write the release notes", "- [x] write the release notes", section="## Tasks")
+    await client.tick_todo("NOTE-PLANNING", "- [ ] write the release notes tomorrow", "- [x] write the release notes tomorrow", section="## Tasks")
+    assert "- [x] write the release notes tomorrow" in (await client.cat("NOTE-PLANNING")).content
+    # a todo on the very last line (no trailing newline) still ticks
+    nid = await client.create("Tail", ["home"], content="- [ ] last line")
+    await client.tick_todo(nid, "- [ ] last line", "- [x] last line")
+    assert (await client.cat(nid)).content.rstrip("\n").endswith("- [x] last line")
+
+
 async def test_tick_via_edit_is_scoped_to_the_section(client):
     todos = scan_rows(await client.todo_rows("home"))
     hydrangea = next(t for t in todos.todos if "hydrangea" in t.text)

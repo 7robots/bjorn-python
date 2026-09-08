@@ -192,8 +192,14 @@ Three columns: smart views and tags · notes · the rendered note.
 | `w` | make the highlighted tag the workspace; again to leave it (`W` also clears) |
 | `f` | fold / unfold the highlighted tag's subtree |
 | `F` | fold every tag, or unfold every tag when all are folded (within the workspace if one is set) |
+| `t` | triage: every open todo in the workspace, grouped by note |
 | `r` | refresh from Bear now |
 | `?` | this help · `q` quit |
+
+In triage: `space` marks, `x` ticks the marked (or highlighted) todos in Bear,
+`enter` goes to the note, `b` opens it in Bear at the section, `/` filters,
+`r` reloads, `esc` closes. With `[reminders] enabled = true`, `a` adds marked
+todos to Apple Reminders and rows show ⏰ (added) or ✓ (completed there).
 
 Edits are hash-guarded: if the note changed in Bear while you were in the
 editor, nothing is written and your version is kept in a temp file.

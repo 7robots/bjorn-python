@@ -343,6 +343,23 @@ class BearClient:
         async with self._write_lock:
             await self._run(*args, parse=False)
 
+    async def tick_todo(self, note_id: str, line: str, done_line: str, section: str = "") -> None:
+        """Flip one `[ ]` to `[x]`, matching the whole line.
+
+        `--find` is a substring match, so a bare line would also hit a longer
+        line that starts the same way. The note is read first: the line must
+        still be present as a complete line, and the newline that ends it pins
+        the match (the last line of a note has none).
+        """
+        current = await self.cat(note_id)
+        lines = current.content.split("\n")
+        if line not in lines:
+            raise BearError(f"The line is no longer in the note: {line.strip()[:60]}", code="conflict")
+        if lines[-1] == line and lines.count(line) == 1:
+            await self.edit(note_id, line, done_line, section=section)
+        else:
+            await self.edit(note_id, line + "\n", done_line + "\n", section=section)
+
     # -- app -----------------------------------------------------------------
 
     async def open_in_app(self, note_id: str, header: str = "") -> None:

@@ -78,7 +78,7 @@ Intent: `t` opens the screen scoped to the workspace; grouped rows, cursor,
 mark, filter, `x` tick with confirm for many, `enter` to the note, `b` to Bear
 at the section, `r` reload; main snapshot reloads after ticks; help updated.
 Verify: `uv run pytest tests/test_triage_screen.py`
-Status: [ ] not started
+Status: [x] done 2026-09-08 (7 passed)
 
 ### Phase 8 — Reminders mode
 Intent: `[reminders]` config, `reminders.py` (remctl client, link notes, key
