@@ -191,6 +191,7 @@ Three columns: smart views and tags · notes · the rendered note.
 | `b` | open the note in Bear.app |
 | `w` | make the highlighted tag the workspace; again to leave it (`W` also clears) |
 | `f` | fold / unfold the highlighted tag's subtree |
+| `F` | fold every tag, or unfold every tag when all are folded (within the workspace if one is set) |
 | `r` | refresh from Bear now |
 | `?` | this help · `q` quit |
 

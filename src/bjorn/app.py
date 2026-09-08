@@ -63,6 +63,7 @@ class BjornApp(App[None]):
         Binding("w", "toggle_workspace", "Workspace"),
         Binding("W", "clear_workspace", "Clear workspace", show=False),
         Binding("f", "fold_tag", "Fold"),
+        Binding("F", "fold_all", "Fold all", show=False),
         Binding("j", "cursor(1)", "Down", show=False),
         Binding("k", "cursor(-1)", "Up", show=False),
     ] + [Binding(v.hotkey, f"view('{v.value}')", v.label, show=False) for v in View]
@@ -377,6 +378,11 @@ class BjornApp(App[None]):
             self.notify("Highlight a tag first (the workspace is a tag subtree).", title="Workspace")
             return
         await self.set_workspace(tag)
+
+    def action_fold_all(self) -> None:
+        """Collapse every tag, or expand every tag when all are collapsed."""
+        expanded = self.sidebar.toggle_all_folds()
+        self.notify("All tags expanded" if expanded else "All tags folded", timeout=1.5)
 
     def action_fold_tag(self) -> None:
         """Collapse or expand the highlighted tag's subtree."""

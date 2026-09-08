@@ -132,6 +132,37 @@ async def test_folds_survive_entering_and_leaving_a_workspace(make_app, client):
         assert [n.is_expanded for n in tree.root.children] == [False, True]
 
 
+async def test_F_toggles_every_fold_and_respects_the_workspace(make_app):
+    app = make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        await loaded(app, pilot)
+        tree = app.sidebar.tree
+        tree.focus()
+        await pilot.pause()
+        branches = lambda: [n for n in app.sidebar._all_nodes(tree.root) if n.allow_expand]
+        assert any(n.is_expanded for n in branches())
+        await pilot.press("F")
+        await pilot.pause()
+        assert not any(n.is_expanded for n in branches())
+        await pilot.press("F")
+        await pilot.pause()
+        assert all(n.is_expanded for n in branches())
+        # inside a workspace only that subtree exists, so F acts on it alone
+        app.sidebar.move_to_tag("work")
+        await wait_until(lambda: app.selection.tag == "work")
+        await pilot.press("w")
+        await wait_until(lambda: app.selection.workspace == "work")
+        await pilot.press("F")
+        await pilot.pause()
+        assert [str(n.data) for n in tree.root.children] == ["work"]
+        assert not tree.root.children[0].is_expanded
+        await pilot.press("w")
+        await wait_until(lambda: app.selection.workspace == "")
+        await pilot.pause()
+        states = {str(n.data): n.is_expanded for n in tree.root.children}
+        assert states == {"home": True, "work": False}
+
+
 async def test_w_without_a_tag_explains_itself(make_app):
     app = make_app()
     async with app.run_test(size=(120, 40)) as pilot:

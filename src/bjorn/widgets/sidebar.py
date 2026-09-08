@@ -139,6 +139,24 @@ class Sidebar(Vertical):
         finally:
             self._suppress = False
 
+    def toggle_all_folds(self) -> bool:
+        """Collapse every tag in the tree if any is open, else expand every one.
+        Scoped by construction: inside a workspace the tree holds only that
+        subtree. Returns True when the result is expanded."""
+        tree = self.tree
+        branches = [n for n in self._all_nodes(tree.root) if n.allow_expand]
+        expand = not any(n.is_expanded for n in branches)
+        for node in branches:
+            node.expand() if expand else node.collapse()
+        self._remember_folds()
+        cursor = tree.cursor_node
+        if cursor is not None and not expand and cursor.parent is not None and cursor.parent is not tree.root:
+            top = cursor
+            while top.parent is not None and top.parent is not tree.root:
+                top = top.parent
+            tree.move_cursor(top)
+        return expand
+
     def _remember_folds(self) -> None:
         for node in self._all_nodes(self.tree.root):
             if node.allow_expand and node.data:
