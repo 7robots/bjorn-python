@@ -21,9 +21,12 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from bjorn.app import BjornApp  # noqa: E402
 from bjorn.bear import BearClient  # noqa: E402
-from bjorn.config import Config  # noqa: E402
+from bjorn.config import Config, RemindersConfig  # noqa: E402
+from bjorn.reminders import RemctlClient  # noqa: E402
+from bjorn.widgets.triage import TriageScreen  # noqa: E402
 
 FAKE = ROOT / "src" / "bjorn" / "fake_bearcli.py"
+FAKE_REMCTL = ROOT / "src" / "bjorn" / "fake_remctl.py"
 
 
 def stamp(days: float) -> str:
@@ -66,13 +69,16 @@ NOTES = [
 ]
 
 
-async def main(out: Path) -> None:
+async def main(out: Path, triage_out: Path | None) -> None:
     tmp = Path(tempfile.mkdtemp(prefix="bjorn-shot-"))
     state = tmp / "bear.json"
     state.write_text(json.dumps({"notes": NOTES, "next_id": 1}))
     os.environ["BJORN_FAKE_BEAR_STATE"] = str(state)
+    os.environ["BJORN_FAKE_REMCTL_STATE"] = str(tmp / "reminders.json")
     client = BearClient([sys.executable, str(FAKE)])
-    app = BjornApp(Config(poll_seconds=0, icon_style="emoji"), client=client, environ={})
+    remctl = RemctlClient([sys.executable, str(FAKE_REMCTL)])
+    config = Config(poll_seconds=0, icon_style="emoji", reminders=RemindersConfig(enabled=True, list="Work"))
+    app = BjornApp(config, client=client, remctl=remctl, environ={})
     async with app.run_test(size=(132, 38)) as pilot:
         for _ in range(100):
             await pilot.pause(0.05)
@@ -85,9 +91,29 @@ async def main(out: Path) -> None:
         app.note_list.list_view.focus()
         await pilot.pause(0.3)
         app.save_screenshot(filename=out.name, path=str(out.parent))
-    print(out)
+        print(out)
+        if triage_out is not None:
+            await pilot.press("t")
+            for _ in range(100):
+                await pilot.pause(0.05)
+                if isinstance(app.screen, TriageScreen) and app.screen.state.rows:
+                    break
+            await pilot.pause(0.5)
+            # one reminder already made, one marked, to show the glyphs
+            await pilot.press("a")
+            for _ in range(60):
+                await pilot.pause(0.05)
+                if any(r.status == "added" for r in app.screen.state.rows):
+                    break
+            await pilot.press("j")
+            await pilot.press("j")
+            await pilot.press("space")
+            await pilot.pause(0.5)
+            app.save_screenshot(filename=triage_out.name, path=str(triage_out.parent))
+            print(triage_out)
 
 
 if __name__ == "__main__":
     target = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "docs" / "screenshot.svg"
-    asyncio.run(main(target))
+    triage = ROOT / "docs" / "screenshot-triage.svg" if len(sys.argv) <= 1 else None
+    asyncio.run(main(target, triage))

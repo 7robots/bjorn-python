@@ -423,6 +423,16 @@ class BjornApp(App[None]):
 
     # -- triage -----------------------------------------------------------------------------
 
+    #: App-level actions that stay available while the triage screen is up.
+    _TRIAGE_SAFE_ACTIONS = frozenset({"quit", "help"})
+
+    def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
+        """Main-screen keys (edit, trash, new…) would act on the note behind the
+        triage screen; hide and disable them while it is up."""
+        if self.triage is not None and action not in self._TRIAGE_SAFE_ACTIONS:
+            return False
+        return True
+
     @property
     def triage(self) -> TriageScreen | None:
         screen = self.screen
@@ -517,7 +527,8 @@ class BjornApp(App[None]):
     @on(TriageScreen.OpenInBear)
     def _on_triage_open(self, event: TriageScreen.OpenInBear) -> None:
         todo = event.todo
-        self.run_worker(functools.partial(self._open_note_in_bear, todo.note_id, todo.header), name="open", exclusive=False)
+        header = "" if todo.section.startswith("# ") else todo.header
+        self.run_worker(functools.partial(self._open_note_in_bear, todo.note_id, header), name="open", exclusive=False)
 
     async def _open_note_in_bear(self, note_id: str, header: str = "") -> None:
         try:

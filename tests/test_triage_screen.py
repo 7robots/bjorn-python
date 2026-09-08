@@ -33,6 +33,12 @@ async def test_t_lists_open_todos_grouped_and_scoped(make_app):
         assert status.startswith("5 open · 2 notes")
         assert "TRIAGE · all notes" in str(screen.query_one("#triage-header").render())
         assert screen.current_row().todo.text == "write the release notes"
+        # main-screen keys are disabled while triage is up: e must not open an editor
+        await pilot.press("e")
+        await pilot.pause()
+        assert isinstance(app.screen, TriageScreen)
+        footer_keys = {b.key for (_, b, enabled, _) in app.screen.active_bindings.values() if enabled}
+        assert "x" in footer_keys and "n" not in footer_keys and "d" not in footer_keys
         await pilot.press("escape")
         await pilot.pause()
         assert not isinstance(app.screen, TriageScreen)

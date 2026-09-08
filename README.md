@@ -58,6 +58,8 @@ each item sits under. `space` marks rows, `x` ticks the marked (or highlighted)
 items in Bear through `bearcli edit`, `enter` jumps to the note, `b` opens it
 in Bear.app at that section, `/` filters, `r` reloads, `esc` closes.
 
+![Triage: open todos grouped by note, with Reminders status](docs/screenshot-triage.svg)
+
 With `[reminders] enabled = true` and [remctl](https://github.com/7robots/remctl)
 on your PATH, `a` also pushes marked items to Apple Reminders. Each reminder's
 notes carry the note's `bear://` link and a `bear-todo: <key>` line (the same

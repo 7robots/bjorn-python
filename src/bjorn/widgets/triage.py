@@ -85,7 +85,9 @@ class TodoItem(ListItem):
             text.append(f"{glyph} ", "green" if row.status == "done" else "cyan" if row.status == "added" else "")
         text.append("☐ ", "dim")
         text.append(row.todo.text, "strike dim" if row.status == "done" else "")
-        if row.todo.header:
+        # The note's own H1 is the section for items above any subheading;
+        # repeating the title under its header says nothing.
+        if row.todo.header and not row.todo.section.startswith("# "):
             text.append(f"  {row.todo.header}", "dim")
         return text
 
