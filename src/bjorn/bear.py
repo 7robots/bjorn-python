@@ -59,7 +59,7 @@ class Location(str, Enum):
 
 
 def normalize_tag(tag: str) -> str:
-    """`#kybernetes/CAD and Design#` -> `kybernetes/CAD and Design`.
+    """`#work/CAD and Design#` -> `work/CAD and Design`.
 
     Bear writes multi-word tags with a closing `#`; bearcli accepts either form
     on input. Internally tags are stored bare.

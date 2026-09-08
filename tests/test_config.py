@@ -16,17 +16,17 @@ def test_missing_config_gives_defaults(tmp_path):
 def test_config_values_are_read(tmp_path):
     path = tmp_path / "config.toml"
     path.write_text(
-        'editor = "nvim"\nexport_dir = "~/exports"\npoll_seconds = 0\nworkspace = "#techne"\nbearcli = "/opt/bearcli"\n'
-        'icon_style = "Nerd"\n[icons]\ntechne = "terminal"\nveritas = "emoji:🎓"\nbad = 3\n'
+        'editor = "nvim"\nexport_dir = "~/exports"\npoll_seconds = 0\nworkspace = "#work"\nbearcli = "/opt/bearcli"\n'
+        'icon_style = "Nerd"\n[icons]\ntech = "terminal"\nschool = "emoji:🎓"\nbad = 3\n'
     )
     cfg = Config.load(path)
     assert cfg.editor == "nvim"
     assert cfg.export_dir == Path("~/exports").expanduser()
     assert cfg.poll_seconds == 0
-    assert cfg.workspace == "techne"
+    assert cfg.workspace == "work"
     assert cfg.bearcli == "/opt/bearcli"
     assert cfg.icon_style == "nerd"
-    assert cfg.icons == {"techne": "terminal", "veritas": "emoji:🎓"}
+    assert cfg.icons == {"tech": "terminal", "school": "emoji:🎓"}
     assert cfg.mouse_pixels is True
     path.write_text("mouse_pixels = false\n")
     assert Config.load(path).mouse_pixels is False
