@@ -1,6 +1,7 @@
 # Bjorn: todo triage
+Bear mirror: 79973271-5EC3-43FE-AC5B-F426B42CA4E6
 
-Status: DRAFT, awaiting approval.
+Status: approved 2026-09-08.
 
 A triage screen inside Bjorn that gathers every open `- [ ]` item from the
 `@todo` notes in scope, lets you tick items done in Bear, jump to the note, or
@@ -14,6 +15,8 @@ plan (1–5).
 - 2026-09-08 — "I'll want to push todo triage to be configurable -- either
   triage in bear OR push to apple reminders. probably a non-default config
   option to sync with apples reminders".
+- 2026-09-08 — on the five spec decisions: "they are all sound or precisely as I
+  intended. awesome! go ahead with the implementation".
 
 ## Decisions
 

@@ -3,12 +3,12 @@
 Single source of truth for planned and deferred work. The active plan lives in
 `docs/plans/`.
 
-## Next plan
+## Active plan
 
-- Todo triage: re-implement remtui's Bear triage screen (`b`) inside Bjorn —
-  scan `@todo` notes in the workspace and tick items done via `bearcli edit`.
-  Pushing to Apple Reminders through `remctl` is a non-default config option
-  (ruling 2026-09-08). Starts after the Bjorn TUI plan's acceptance gate.
+- Todo triage: `docs/plans/bjorn-triage.md` (approved 2026-09-08).
+
+## Next
+
 - PDF export (deferred 2026-09-08): markdown-it-py → HTML with a Bear-like
   stylesheet → headless Chromium-family browser (`--headless=new --print-to-pdf`,
   Edge/Chrome autodetected). Verified with Edge: the PDF lands but the process
@@ -26,3 +26,5 @@ Single source of truth for planned and deferred work. The active plan lives in
 - Section navigation in the note view from `bearcli outline`.
 - Locked notes: show metadata only, explain why content is unavailable.
 - Background change detection smarter than polling (Bear's SQLite mtime).
+- Triage follow-ons: edit a todo's text from the screen; snooze a reminder's
+  due date; triage `@done` items (un-tick); a "Todo in workspace" smart view.
