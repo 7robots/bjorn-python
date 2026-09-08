@@ -90,6 +90,9 @@ class Sidebar(Vertical):
         self.icons = icons or IconSet("none")
         self._workspace = ""
         self._suppress = False
+        #: Fold state by tag path, remembered across rebuilds (reloads, entering
+        #: and leaving a workspace) so a tree the user folded stays folded.
+        self._expanded: dict[str, bool] = {}
 
     def compose(self) -> ComposeResult:
         yield Static("BJORN", id="sidebar-header")
@@ -127,6 +130,7 @@ class Sidebar(Vertical):
             for item in self.views.query(ViewItem):
                 item.update_count(counts[item.view])
             tree = self.tree
+            self._remember_folds()
             root = build_tag_tree(snapshot, workspace)
             tree.clear()
             self._fill(tree.root, root, expand_depth=1 if not workspace else 99)
@@ -135,12 +139,18 @@ class Sidebar(Vertical):
         finally:
             self._suppress = False
 
+    def _remember_folds(self) -> None:
+        for node in self._all_nodes(self.tree.root):
+            if node.allow_expand and node.data:
+                self._expanded[str(node.data)] = node.is_expanded
+
     def _fill(self, parent: TreeNode, node: TagNode, expand_depth: int, depth: int = 0) -> None:
         for child in node.sorted_children():
             icon = self.icons.for_tag(child.path) if "/" not in child.path else ""
             label = Text.assemble(icon, child.name, (f" {child.count}", "dim"))
             if child.children:
-                tn = parent.add(label, data=child.path, expand=depth < expand_depth)
+                expand = self._expanded.get(child.path, depth < expand_depth)
+                tn = parent.add(label, data=child.path, expand=expand)
                 self._fill(tn, child, expand_depth, depth + 1)
             else:
                 parent.add_leaf(label, data=child.path)

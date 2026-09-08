@@ -105,6 +105,33 @@ async def test_f_folds_and_unfolds_a_tag(make_app):
         assert not home.is_expanded and tree.cursor_node is home
 
 
+async def test_folds_survive_entering_and_leaving_a_workspace(make_app, client):
+    app = make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        await loaded(app, pilot)
+        tree = app.sidebar.tree
+        tree.focus()
+        await pilot.pause()
+        for node in tree.root.children:
+            node.collapse()
+        assert not any(n.is_expanded for n in tree.root.children)
+        app.sidebar.move_to_tag("home")
+        await wait_until(lambda: app.selection.tag == "home")
+        await pilot.press("w")
+        await wait_until(lambda: app.selection.workspace == "home")
+        await pilot.press("w")
+        await wait_until(lambda: app.selection.workspace == "")
+        await pilot.pause()
+        assert [n.is_expanded for n in tree.root.children] == [False, False]
+        # a reload (poll / r) keeps them folded too, and a fold made now is kept
+        tree.root.children[1].expand()
+        await client.create("Another", ["home/new"])
+        await pilot.press("r")
+        await wait_until(lambda: any(n.title == "Another" for n in app.snapshot.notes))
+        await pilot.pause()
+        assert [n.is_expanded for n in tree.root.children] == [False, True]
+
+
 async def test_w_without_a_tag_explains_itself(make_app):
     app = make_app()
     async with app.run_test(size=(120, 40)) as pilot:
