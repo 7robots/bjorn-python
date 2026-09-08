@@ -44,6 +44,17 @@ def main() -> int:
         write("\x1b[?2048$p\x1b[?2048h\x1b[14t\x1b[16t\x1b[18t")
         write("\x1b[?1000h\x1b[?1003h\x1b[?1006h" + ("" if cells_only else "\x1b[?1016h"))
         buf = ""
+        marked: int | None = None
+
+        def mark(row: float | None, text: str) -> None:
+            nonlocal marked
+            if marked is not None and 0 <= marked < size.lines - 8:
+                write(f"\x1b[{marked + 1};{size.columns - 44}H" + "·" * 44)
+            marked = None
+            if row is not None and 0 <= int(row) < size.lines - 8:
+                marked = int(row)
+                write(f"\x1b[{marked + 1};{size.columns - 44}H\x1b[1;33m◀ {text:<42}\x1b[0m")
+
         while True:
             ready, _, _ = select.select([fd], [], [], 0.5)
             if not ready:
@@ -52,7 +63,9 @@ def main() -> int:
             if "q" in data and "\x1b" not in data:
                 break
             buf += data
+            last_end = 0
             for m in REPORT.finditer(buf):
+                last_end = m.end()
                 s = m.group(1)
                 if s.startswith("48;"):
                     rows, cols, ph, pw = map(int, s[3:-1].split(";"))
@@ -65,12 +78,15 @@ def main() -> int:
                     _, x, y = map(int, s[1:-1].split(";"))
                     if cells_only:
                         status = f"cell report x={x:4d} y={y:4d} -> row {y - 1}"
+                        mark(y - 1, "terminal says the pointer is on this row")
                     elif rows and ph:
-                        status = f"pixel report x={x:5d} y={y:5d} -> Textual row {(y - 1) / (ph / rows):6.2f} col {(x - 1) / (pw / cols):6.2f}"
+                        trow = (y - 1) / (ph / rows)
+                        status = f"pixel report x={x:5d} y={y:5d} -> Textual row {trow:6.2f} col {(x - 1) / (pw / cols):6.2f}"
+                        mark(trow, f"Textual puts the pointer here (row {int(trow)})")
                     else:
                         status = f"pixel report x={x:5d} y={y:5d} (no in-band size yet)"
                     write(f"\x1b[{size.lines - 1};1H\x1b[2K{status}")
-            buf = buf[-300:]
+            buf = buf[last_end:][-300:]
             for i, line in enumerate(log[-4:]):
                 write(f"\x1b[{size.lines - 6 + i};1H\x1b[2K\x1b[1m{line}\x1b[0m")
     finally:
