@@ -53,6 +53,58 @@ async def test_workspace_from_config(client, config):
         assert titles(app) == ["Garden Plan", "Reading Queue"]
 
 
+async def test_w_again_leaves_the_workspace(make_app):
+    app = make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        await loaded(app, pilot)
+        app.sidebar.tree.focus()
+        await pilot.pause()
+        await pilot.press("down")
+        await wait_until(lambda: app.selection.tag == "home")
+        await pilot.press("w")
+        await wait_until(lambda: app.selection.workspace == "home")
+        # the tree now shows only the workspace subtree; its root is highlighted
+        assert app.sidebar.highlighted_tag() in ("home", "")
+        await pilot.press("w")
+        await wait_until(lambda: app.selection.workspace == "")
+        assert len(titles(app)) == 5
+        # w from the notes list with a workspace set also leaves it
+        app.sidebar.tree.focus()
+        await pilot.pause()
+        app.sidebar.move_to_tag("work")
+        await wait_until(lambda: app.selection.tag == "work")
+        await pilot.press("w")
+        await wait_until(lambda: app.selection.workspace == "work")
+        app.note_list.list_view.focus()
+        await pilot.press("w")
+        await wait_until(lambda: app.selection.workspace == "")
+
+
+async def test_f_folds_and_unfolds_a_tag(make_app):
+    app = make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        await loaded(app, pilot)
+        tree = app.sidebar.tree
+        home = tree.root.children[0]
+        assert home.is_expanded
+        tree.focus()
+        await pilot.pause()
+        await pilot.press("down")
+        await wait_until(lambda: tree.cursor_node is home)
+        await pilot.press("f")
+        await pilot.pause()
+        assert not home.is_expanded
+        await pilot.press("f")
+        await pilot.pause()
+        assert home.is_expanded
+        # on a leaf, f folds the parent and moves the cursor to it
+        await pilot.press("down")
+        await wait_until(lambda: tree.cursor_node is not home)
+        await pilot.press("f")
+        await pilot.pause()
+        assert not home.is_expanded and tree.cursor_node is home
+
+
 async def test_w_without_a_tag_explains_itself(make_app):
     app = make_app()
     async with app.run_test(size=(120, 40)) as pilot:

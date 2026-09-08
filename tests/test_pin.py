@@ -21,11 +21,11 @@ async def test_p_toggles_global_pin_and_resorts(make_app, client):
         assert (await client.snapshot()).by_id("NOTE-PLANNING").pinned_globally
 
 
-async def test_o_opens_the_note_in_bear(make_app, fake_state):
+async def test_b_opens_the_note_in_bear(make_app, fake_state):
     app = make_app()
     async with app.run_test(size=(120, 40)) as pilot:
         await loaded(app, pilot)
-        await pilot.press("o")
+        await pilot.press("b")
         log = fake_state.parent / "bear.json.opened"
         await wait_until(lambda: log.exists())
         assert json.loads(log.read_text().splitlines()[-1])["id"] == "NOTE-PLANNING"

@@ -59,9 +59,10 @@ class BjornApp(App[None]):
         Binding("u", "restore_note", "Restore", show=False),
         Binding("p", "toggle_pin", "Pin"),
         Binding("x", "export_note", "Export"),
-        Binding("o", "open_in_bear", "Bear"),
-        Binding("w", "set_workspace", "Workspace"),
+        Binding("b", "open_in_bear", "Bear"),
+        Binding("w", "toggle_workspace", "Workspace"),
         Binding("W", "clear_workspace", "Clear workspace", show=False),
+        Binding("f", "fold_tag", "Fold", show=False),
         Binding("j", "cursor(1)", "Down", show=False),
         Binding("k", "cursor(-1)", "Up", show=False),
     ] + [Binding(v.hotkey, f"view('{v.value}')", v.label, show=False) for v in View]
@@ -361,15 +362,35 @@ class BjornApp(App[None]):
 
     # -- actions: workspace --------------------------------------------------------------
 
-    async def action_set_workspace(self) -> None:
+    async def action_toggle_workspace(self) -> None:
+        """`w` scopes to the highlighted tag; pressed again on the workspace
+        itself (or with no other tag in hand) it clears the scope."""
         tag = ""
         if self.focused is self.sidebar.tree:
             tag = self.sidebar.highlighted_tag()
         tag = tag or self.selection.tag
+        current = self.selection.workspace
+        if current and (not tag or tag == current):
+            await self.set_workspace("")
+            return
         if not tag:
             self.notify("Highlight a tag first (the workspace is a tag subtree).", title="Workspace")
             return
         await self.set_workspace(tag)
+
+    def action_fold_tag(self) -> None:
+        """Collapse or expand the highlighted tag's subtree."""
+        tree = self.sidebar.tree
+        node = tree.cursor_node
+        if node is None and self.selection.tag and self.sidebar.move_to_tag(self.selection.tag):
+            node = tree.cursor_node
+        if node is None:
+            return
+        if node.allow_expand:
+            node.toggle()
+        elif node.parent is not None and node.parent is not tree.root:
+            tree.move_cursor(node.parent)
+            node.parent.collapse()
 
     async def set_workspace(self, tag: str) -> None:
         tag = normalize_tag(tag)

@@ -35,7 +35,8 @@ bjorn --demo          # sample notes through a built-in fake bearcli, no Bear ne
 | `n` | new note (title, tags), then edit | `d` | move the note to the trash |
 | `e` | edit in `$EDITOR` | `u` | restore from Trash or Archive |
 | `p` | toggle the global pin | `x` | export as Markdown |
-| `o` | open in Bear.app | `w` / `W` | set / clear the workspace |
+| `b` | open in Bear.app | `w` | set the workspace; again to leave it |
+| `f` | fold / unfold a tag subtree | `W` | clear the workspace |
 | `r` | refresh now | `?` `q` | help, quit |
 
 The **workspace** is a tag subtree that scopes the whole app: the tag tree

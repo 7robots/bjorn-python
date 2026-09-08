@@ -78,8 +78,9 @@ remtui) is a second plan that starts after this one's acceptance gate.
 | `j` `k` `enter` | move / open in pane | `esc` | clear search / close modal |
 | `n` | new note | `d` | trash note (confirm) |
 | `e` | edit in $EDITOR | `x` | export menu |
-| `p` | toggle global pin | `o` | open in Bear.app |
-| `w` / `W` | set / clear workspace | `r` | refresh |
+| `p` | toggle global pin | `b` | open in Bear.app |
+| `w` / `W` | toggle / clear workspace | `r` | refresh |
+| `f` | fold / unfold tag subtree | | |
 | `1`–`7` | All, Untagged, Todo, Today, Pinned, Archive, Trash | `?` `q` | help, quit |
 
 ## Phases

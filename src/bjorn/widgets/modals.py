@@ -188,8 +188,9 @@ Three columns: smart views and tags · notes · the rendered note.
 | `u` | restore from Trash or Archive |
 | `p` | toggle the global pin |
 | `x` | export the note as Markdown |
-| `o` | open the note in Bear.app |
-| `w` / `W` | make the highlighted tag the workspace / clear it |
+| `b` | open the note in Bear.app |
+| `w` | make the highlighted tag the workspace; again to leave it (`W` also clears) |
+| `f` | fold / unfold the highlighted tag's subtree |
 | `r` | refresh from Bear now |
 | `?` | this help · `q` quit |
 
