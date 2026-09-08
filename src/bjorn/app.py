@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import functools
 import os
@@ -88,6 +89,11 @@ class BjornApp(App[None]):
         self._busy = False
         self._written_titles: set[str] = set()
         self.loaded = False
+        # Renders are never cancelled mid-flight (a half-mounted Markdown wedges
+        # its message queue); a stale render is skipped by generation instead.
+        self._load_gen = 0
+        self._render_lock = asyncio.Lock()
+        self._reload_lock = asyncio.Lock()
 
     # -- layout ------------------------------------------------------------------
 
@@ -113,7 +119,7 @@ class BjornApp(App[None]):
     def on_mount(self) -> None:
         self.sidebar.set_workspace(self.selection.workspace)
         self.note_list.list_view.focus()
-        self.run_worker(self.reload, name="reload", group="reload", exclusive=True)
+        self.run_worker(self.reload, name="reload", group="reload")
         if self.config.poll_seconds > 0:
             self._poll_timer = self.set_interval(self.config.poll_seconds, self._poll)
 
@@ -121,32 +127,34 @@ class BjornApp(App[None]):
 
     async def reload(self, *, keep_id: str | None = None, focus_id: str | None = None) -> None:
         """Take a fresh snapshot and redraw every pane around it."""
-        try:
-            snapshot = await self.client.snapshot()
-        except BearError as exc:
-            self.notify(str(exc), title="bearcli", severity="error", timeout=10)
-            if not self.loaded:
-                await self.note_view.clear(f"Could not read Bear: {exc}")
-            return
-        self.snapshot = snapshot
-        self.loaded = True
-        with contextlib.suppress(BearError):
-            self._last_probe = await self.client.probe()
-        current = self.note_list.current()
-        await self.apply_selection(keep_id=focus_id or keep_id or (current.id if current else None))
-        if focus_id:
-            self.note_list.select_id(focus_id)
-        self._warn_duplicates()
+        async with self._reload_lock:
+            try:
+                snapshot = await self.client.snapshot()
+            except BearError as exc:
+                self.notify(str(exc), title="bearcli", severity="error", timeout=10)
+                if not self.loaded:
+                    await self._clear_view(f"Could not read Bear: {exc}")
+                return
+            self.snapshot = snapshot
+            self.loaded = True
+            with contextlib.suppress(BearError):
+                self._last_probe = await self.client.probe()
+            current = self.note_list.current()
+            await self.sidebar.populate(self.snapshot, self.selection.workspace, keep_tag=self.selection.tag)
+            await self.apply_selection(keep_id=focus_id or keep_id or (current.id if current else None))
+            if focus_id:
+                self.note_list.select_id(focus_id)
+            self._warn_duplicates()
 
     async def apply_selection(self, *, keep_id: str | None = None) -> None:
-        sel = self.selection
-        await self.sidebar.populate(self.snapshot, sel.workspace, keep_tag=sel.tag)
-        notes = select_notes(self.snapshot, sel)
-        header = sel.describe()
-        if self.search_query:
-            header = f"“{self.search_query}”"
-        self.note_list.set_header(f"{header} · {len(notes)}")
-        await self.note_list.show_notes(notes, keep_id=keep_id)
+        async with self._render_lock:
+            sel = self.selection
+            notes = select_notes(self.snapshot, sel)
+            header = sel.describe()
+            if self.search_query:
+                header = f"“{self.search_query}”"
+            self.note_list.set_header(f"{header} · {len(notes)}")
+            await self.note_list.show_notes(notes, keep_id=keep_id)
 
     def _warn_duplicates(self) -> None:
         if not self._written_titles:
@@ -163,7 +171,8 @@ class BjornApp(App[None]):
     async def _poll(self) -> None:
         if self._busy or not self.loaded:
             return
-        self.run_worker(self._poll_worker, name="poll", group="poll", exclusive=True)
+        if not any(w.name == "poll" and w.is_running for w in self.workers):
+            self.run_worker(self._poll_worker, name="poll", group="poll")
 
     async def _poll_worker(self) -> None:
         try:
@@ -197,9 +206,22 @@ class BjornApp(App[None]):
     @on(NoteList.Highlighted)
     def _on_note_highlighted(self, event: NoteList.Highlighted) -> None:
         if event.note is None:
-            self.run_worker(functools.partial(self.note_view.clear, "No note selected"), group="note-load", exclusive=True)
+            if self._preview_timer is not None:
+                self._preview_timer.stop()
+            self._load_gen += 1
+            self.run_worker(functools.partial(self._clear_view, "No note selected"), group="note-load")
             return
         self._schedule_preview(event.note)
+
+    async def _clear_view(self, message: str) -> None:
+        gen = self._load_gen
+        async with self._render_lock:
+            if gen == self._load_gen and self.is_running:
+                await self.note_view.clear(message)
+
+    @on(NoteView.WantsFull)
+    def _on_wants_full(self) -> None:
+        self.run_worker(functools.partial(self._render_full, self._load_gen), group="note-full")
 
     @on(NoteList.Opened)
     def _on_note_opened(self, event: NoteList.Opened) -> None:
@@ -209,7 +231,7 @@ class BjornApp(App[None]):
     async def _on_search(self, event: NoteList.SearchSubmitted) -> None:
         self.search_query = event.query
         query = event.query
-        self.run_worker(functools.partial(self._search_worker, query), name="search", group="search", exclusive=True)
+        self.run_worker(functools.partial(self._search_worker, query), name="search", group="search")
 
     async def _search_worker(self, query: str) -> None:
         try:
@@ -236,9 +258,12 @@ class BjornApp(App[None]):
             self._preview_timer.stop()
         if self._settle_timer is not None:
             self._settle_timer.stop()
+        self._load_gen += 1
+        gen = self._load_gen
+
         def start() -> None:
-            if self.is_running:
-                self.run_worker(functools.partial(self._load_note, note), name="note-load", group="note-load", exclusive=True)
+            if self.is_running and gen == self._load_gen:
+                self.run_worker(functools.partial(self._load_note, note, gen), name="note-load", group="note-load")
 
         if immediate:
             start()
@@ -254,27 +279,36 @@ class BjornApp(App[None]):
         self._content_cache[note.id] = (stamp, content)
         return content
 
-    async def _load_note(self, note: Note) -> None:
+    async def _load_note(self, note: Note, gen: int) -> None:
+        view = self.note_view
         if note.locked:
-            await self.note_view.show_error(note, "This note is locked; Bear does not expose its content.")
+            async with self._render_lock:
+                if gen == self._load_gen:
+                    await view.show_error(note, "This note is locked; Bear does not expose its content.")
             return
         try:
             content = await self._fetch_content(note)
         except BearError as exc:
-            await self.note_view.show_error(note, f"Could not read note: {exc}")
+            async with self._render_lock:
+                if gen == self._load_gen:
+                    await view.show_error(note, f"Could not read note: {exc}")
             return
-        current = self.note_list.current()
-        if current is None or current.id != note.id:
-            return
-        view = self.note_view
-        truncated = await view.show(note, content.content, max_lines=BROWSE_LINES)
+        async with self._render_lock:
+            if gen != self._load_gen or not self.is_running:
+                return
+            truncated = await view.show(note, content.content, max_lines=BROWSE_LINES)
         if truncated and len(content.content.splitlines()) <= AUTO_COMPLETE_LINES:
 
             def finish() -> None:
-                if self.is_running and view.is_attached:
-                    self.run_worker(view.render_full, group="note-full", exclusive=True)
+                if self.is_running and gen == self._load_gen:
+                    self.run_worker(functools.partial(self._render_full, gen), group="note-full")
 
             self._settle_timer = self.set_timer(PREVIEW_SETTLE, finish)
+
+    async def _render_full(self, gen: int) -> None:
+        async with self._render_lock:
+            if gen == self._load_gen and self.is_running:
+                await self.note_view.render_full()
 
     def current_note(self) -> Note | None:
         return self.note_list.current()
@@ -308,7 +342,10 @@ class BjornApp(App[None]):
 
     def action_refresh(self) -> None:
         self._content_cache.clear()
-        self.run_worker(self.reload, name="reload", group="reload", exclusive=True)
+        self.run_worker(self._refresh_worker, name="reload", group="reload")
+
+    async def _refresh_worker(self) -> None:
+        await self.reload()
         current = self.current_note()
         if current is not None:
             self._schedule_preview(current, immediate=True)
@@ -332,6 +369,7 @@ class BjornApp(App[None]):
         tag = normalize_tag(tag)
         self.search_query = ""
         self.selection = Selection(view=View.ALL, workspace=tag)
+        await self.sidebar.populate(self.snapshot, tag)
         await self.apply_selection()
         self.sidebar.select_view(View.ALL)
         self.notify(f"Workspace: {display_tag(tag)}" if tag else "Workspace cleared", timeout=3)

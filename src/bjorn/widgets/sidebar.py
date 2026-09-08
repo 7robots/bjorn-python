@@ -139,7 +139,8 @@ class Sidebar(Vertical):
                 parent.add_leaf(label, data=child.path)
 
     def move_to_tag(self, tag: str) -> bool:
-        """Put the tree cursor on a tag path, expanding ancestors. False if absent."""
+        """Put the tree cursor on a tag path, expanding ancestors, and select
+        it unless a populate is in progress. False if the tag is absent."""
         for node in self._all_nodes(self.tree.root):
             if node.data == tag:
                 ancestor = node.parent
@@ -147,6 +148,8 @@ class Sidebar(Vertical):
                     ancestor.expand()
                     ancestor = ancestor.parent
                 self.tree.move_cursor(node)
+                if not self._suppress:
+                    self.post_message(self.TagSelected(tag))
                 return True
         return False
 

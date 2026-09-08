@@ -96,7 +96,7 @@ Intent: nested tag tree with counts, smart filters (Untagged / Todo / Today /
 Pinned / Archive / Trash), free-text search via `bearcli search`, workspace
 scoping (`w`/`W`, `--tag`), `o` open in Bear, `r` and poll refresh.
 Verify: `uv run pytest tests/test_filters.py tests/test_workspace.py tests/test_search.py`
-Status: [ ] not started
+Status: [x] done 2026-09-08 (12 passed)
 
 ### Phase 3 — Writes
 Intent: edit via `$EDITOR` with hash-guarded overwrite and conflict handling,

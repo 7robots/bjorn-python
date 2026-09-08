@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from textual.app import ComposeResult
 from textual.containers import Vertical, VerticalScroll
+from textual.message import Message
 from textual.widgets import Markdown, Static
 
 from ..bear import Note
@@ -124,6 +125,9 @@ class NoteView(Vertical):
             meta.append("pinned " + ", ".join(note.pins))
         self.query_one("#note-meta", Static).update(" · ".join(meta))
 
+    class WantsFull(Message):
+        """The pane was focused while truncated: the app should render the rest."""
+
     def on_descendant_focus(self, event) -> None:
         if not self._rendered_full:
-            self.run_worker(self.render_full, name="note-full", group="note-full", exclusive=True)
+            self.post_message(self.WantsFull())
