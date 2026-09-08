@@ -57,7 +57,7 @@ export_dir = "~/Downloads"    # where `x` proposes to write
 poll_seconds = 5              # 0 disables the background refresh
 workspace = "techne"          # start scoped to this tag
 bearcli = "/usr/local/bin/bearcli"
-icon_style = "auto"           # auto | nerd | emoji | none
+icon_style = "auto"           # auto | nerd | emoji | lucide | none
 
 [icons]                       # top-level tag -> Lucide icon name, or emoji:<glyph>
 techne = "terminal"
@@ -70,6 +70,30 @@ emoji otherwise. Built-in defaults cover `veritas`, `techne`, `anthologia`,
 `melete`, `poietikos`, `kybernetes`, `architekton` and `publish`; anything else
 gets a tag glyph. Names are Lucide's (`bot`, `book-open`, `compass`, ...); see
 `src/bjorn/icons.py` for the table.
+
+### Lucide icons directly
+
+`icon_style = "lucide"` draws Lucide's own glyphs from its icon font instead of
+Nerd Font look-alikes, and any of Lucide's 2,000+ names works under `[icons]`.
+It is opt-in because the terminal has to be told about the font:
+
+```sh
+# 1. Install the font. Pin the version Bjorn's codepoint table was built from.
+curl -L -o ~/Library/Fonts/lucide.ttf https://unpkg.com/lucide-static@1.43.0/font/lucide.ttf
+
+# 2. Ghostty: route Lucide's codepoint range to it (~/.config/ghostty/config).
+font-codepoint-map = U+E038-U+E768=Lucide
+```
+
+Open a new Ghostty window afterwards. Kitty's `symbol_map` does the same job.
+
+Two caveats. Lucide reassigns codepoints between releases, so the installed
+`lucide.ttf` must match the bundled table (lucide-static 1.43.0; both are noted
+in `src/bjorn/icons.py`). And U+E000–U+E7FF is where Nerd Fonts keep the
+Powerline, Pomicons, Seti and Codicons sets, so that mapping takes those glyphs
+away from everything in the window: prompt themes, `eza`/`lsd` file icons,
+Neovim statuslines. Bjorn's Material Design glyphs live above U+F0000 and are
+unaffected.
 
 The poll is cheap: two `bearcli list` probes (about 40 ms) and a full reload
 only when something changed.

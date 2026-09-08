@@ -7,24 +7,36 @@ Notebook Navigator use) and rendered in one of two styles:
     Material Design Icons from Nerd Fonts. Needs a Nerd Font in the terminal.
 ``emoji``
     Plain emoji, for terminals without one.
+``lucide``
+    Lucide's own icon font, emitted by name from the bundled
+    ``data/lucide-codepoints.json`` (lucide-static LUCIDE_VERSION). Opt-in: the
+    terminal must map that Private Use Area range onto ``lucide.ttf`` (see the
+    README), and doing so displaces the Nerd Font sets living in U+E000-U+E7FF.
 
-``auto`` picks between them by looking at the terminal. Names prefixed with
-``emoji:`` are literal glyphs and pass through unchanged. ``none`` renders no
-icons at all.
+``auto`` picks between nerd and emoji by looking at the terminal; it never
+picks lucide. Names prefixed with ``emoji:`` are literal glyphs and pass
+through unchanged. ``none`` renders no icons at all.
 """
 
 from __future__ import annotations
 
+import json
 import os
+from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
 from rich.cells import cell_len
 
-GlyphStyle = Literal["nerd", "emoji"]
-IconStyle = Literal["auto", "nerd", "emoji", "none"]
-ICON_STYLES: tuple[str, ...] = ("auto", "nerd", "emoji", "none")
+GlyphStyle = Literal["nerd", "emoji", "lucide"]
+IconStyle = Literal["auto", "nerd", "emoji", "lucide", "none"]
+ICON_STYLES: tuple[str, ...] = ("auto", "nerd", "emoji", "lucide", "none")
 FALLBACK_GLYPH_STYLE: GlyphStyle = "emoji"
+
+#: The lucide-static release the bundled codepoints (and the font you install)
+#: must come from. Lucide reassigns codepoints between releases.
+LUCIDE_VERSION = "1.43.0"
+LUCIDE_CODEPOINTS_PATH = Path(__file__).with_name("data") / "lucide-codepoints.json"
 
 #: Glyphs are padded to this many cells plus one separating space, so labels
 #: line up whether the glyph is single- or double-width.
@@ -59,7 +71,7 @@ NERD_GLYPHS: dict[str, str] = {
     "library": "\U000f0331",  # md-library
     "lightbulb": "\U000f0335",  # md-lightbulb
     "lock": "\U000f033e",  # md-lock
-    "meditation": "\U000f117b",  # md-meditation
+    "flower": "\U000f024a",  # md-flower
     "music": "\U000f075a",  # md-music
     "notebook": "\U000f082e",  # md-notebook
     "palette": "\U000f03d8",  # md-palette
@@ -71,7 +83,7 @@ NERD_GLYPHS: dict[str, str] = {
     "star": "\U000f04ce",  # md-star
     "sun": "\U000f05a8",  # md-white_balance_sunny
     "tag": "\U000f04f9",  # md-tag
-    "tag-off": "\U000f04fc",  # md-tag_outline
+    "tags": "\U000f04fb",  # md-tag_multiple
     "terminal": "\U000f018d",  # md-console
     "trash": "\U000f01b4",  # md-delete
     "trees": "\U000f0405",  # md-pine_tree
@@ -110,7 +122,7 @@ EMOJI_GLYPHS: dict[str, str] = {
     "library": "\U0001f4da",  # 📚
     "lightbulb": "\U0001f4a1",  # 💡
     "lock": "\U0001f512",  # 🔒
-    "meditation": "\U0001f9d8",  # 🧘
+    "flower": "\U0001f338",  # 🌸
     "music": "\U0001f3b5",  # 🎵
     "notebook": "\U0001f4d3",  # 📓
     "palette": "\U0001f3a8",  # 🎨
@@ -122,7 +134,7 @@ EMOJI_GLYPHS: dict[str, str] = {
     "star": "⭐",
     "sun": "☀",
     "tag": "\U0001f3f7",  # 🏷
-    "tag-off": "\U0001f3f7",  # 🏷
+    "tags": "\U0001f3f7",  # 🏷
     "terminal": "▸",
     "trash": "\U0001f5d1",  # 🗑
     "trees": "\U0001f332",  # 🌲
@@ -132,7 +144,22 @@ EMOJI_GLYPHS: dict[str, str] = {
     "zap": "⚡",
 }
 
-GLYPH_TABLES: dict[str, dict[str, str]] = {"nerd": NERD_GLYPHS, "emoji": EMOJI_GLYPHS}
+
+
+@lru_cache(maxsize=1)
+def lucide_glyphs() -> dict[str, str]:
+    """Every Lucide icon name -> the codepoint in lucide.ttf, loaded once."""
+    with LUCIDE_CODEPOINTS_PATH.open("rb") as fh:
+        data = json.load(fh)
+    return {name: chr(int(code)) for name, code in data.items()}
+
+
+def glyph_table(style: str) -> dict[str, str]:
+    if style == "lucide":
+        return lucide_glyphs()
+    if style == "nerd":
+        return NERD_GLYPHS
+    return EMOJI_GLYPHS
 
 #: Icon names for top-level tags when the config says nothing. Unknown tags get
 #: DEFAULT_TAG_ICON.
@@ -140,7 +167,7 @@ DEFAULT_TAG_ICONS: dict[str, str] = {
     "veritas": "graduation-cap",
     "techne": "code",
     "anthologia": "book-open",
-    "melete": "meditation",
+    "melete": "flower",
     "poietikos": "palette",
     "kybernetes": "bot",
     "architekton": "compass",
@@ -151,7 +178,7 @@ DEFAULT_TAG_ICON = "tag"
 #: Icon names for the smart views, keyed by View.value.
 VIEW_ICONS: dict[str, str] = {
     "all": "notebook",
-    "untagged": "tag-off",
+    "untagged": "tag",
     "todo": "check-circle",
     "today": "calendar",
     "pinned": "pin",
@@ -203,7 +230,12 @@ class IconSet:
         if style not in ICON_STYLES:
             style = "auto"
         self.enabled = style != "none"
-        self.style: GlyphStyle = detect_glyph_style(environ) if style == "auto" else style if style in GLYPH_TABLES else FALLBACK_GLYPH_STYLE
+        if style == "auto":
+            self.style: GlyphStyle = detect_glyph_style(environ)
+        elif style in ("nerd", "emoji", "lucide"):
+            self.style = style  # type: ignore[assignment]
+        else:
+            self.style = FALLBACK_GLYPH_STYLE
         self.tag_icons = {k.strip().strip("#").casefold(): v.strip() for k, v in (tag_icons or {}).items() if v and v.strip()}
 
     def glyph(self, name: str) -> str:
@@ -212,7 +244,7 @@ class IconSet:
             return ""
         if name.startswith("emoji:"):
             return pad_glyph(name[len("emoji:"):])
-        table = GLYPH_TABLES[self.style]
+        table = glyph_table(self.style)
         return pad_glyph(table.get(name, table[DEFAULT_TAG_ICON]))
 
     def for_tag(self, top_level_tag: str) -> str:
