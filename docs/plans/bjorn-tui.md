@@ -109,7 +109,7 @@ Status: [x] done 2026-09-08 (11 passed)
 Intent: Markdown export with destination prompt; `config.toml`; help modal;
 `install.sh`; README.
 Verify: `uv run pytest tests/test_export.py tests/test_config.py && uv run pytest`
-Status: [ ] not started
+Status: [x] done 2026-09-08 (54 passed)
 
 ### Phase 5 — Acceptance gate
 Intent: one scripted pass against the live Bear database, read from the terminal.
