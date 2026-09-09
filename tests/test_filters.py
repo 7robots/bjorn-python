@@ -41,6 +41,8 @@ async def test_sidebar_cursor_selects_views_and_tags(make_app):
         await pilot.press("down")
         await wait_until(lambda: app.selection.tag == "home")
         assert titles(app) == ["Garden Plan", "Reading Queue"]
+        await pilot.press("f")  # tags start folded
+        await pilot.pause()
         await pilot.press("down")
         await wait_until(lambda: app.selection.tag == "home/garden")
         assert titles(app) == ["Garden Plan"]

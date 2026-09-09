@@ -19,11 +19,13 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Iterable, Sequence
 
+from .render import preview
+
 ENV_COMMAND = "BJORN_BEARCLI"
 DEFAULT_COMMAND = "bearcli"
 
 #: Every metadata field `list` can return. Content is fetched separately.
-LIST_FIELDS = "id,title,locked,tags,length,created,modified,pins,location,todos,done,attachments"
+LIST_FIELDS = "id,title,locked,tags,length,created,modified,pins,location,todos,done,attachments,content"
 
 #: The stderr line bearcli prints when `--base` no longer matches.
 _STALE_TEXT = "has changed since last read"
@@ -116,6 +118,7 @@ class Note:
     done: int = 0
     attachments: int = 0
     locked: bool = False
+    preview: str = ""
 
     @classmethod
     def from_row(cls, row: dict[str, Any]) -> "Note":
@@ -139,6 +142,7 @@ class Note:
             done=int(row.get("done") or 0),
             attachments=len(attachments) if isinstance(attachments, (list, tuple)) else int(attachments or 0),
             locked=_is_yes(row.get("locked")),
+            preview=preview(str(row.get("content") or "")),
         )
 
     @property

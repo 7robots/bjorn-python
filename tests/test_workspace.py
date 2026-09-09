@@ -86,11 +86,14 @@ async def test_f_folds_and_unfolds_a_tag(make_app):
         await loaded(app, pilot)
         tree = app.sidebar.tree
         home = tree.root.children[0]
-        assert home.is_expanded
+        assert not home.is_expanded, "tags start folded"
         tree.focus()
         await pilot.pause()
         await pilot.press("down")
         await wait_until(lambda: tree.cursor_node is home)
+        await pilot.press("f")
+        await pilot.pause()
+        assert home.is_expanded
         await pilot.press("f")
         await pilot.pause()
         assert not home.is_expanded
@@ -140,7 +143,10 @@ async def test_F_toggles_every_fold_and_respects_the_workspace(make_app):
         tree.focus()
         await pilot.pause()
         branches = lambda: [n for n in app.sidebar._all_nodes(tree.root) if n.allow_expand]
-        assert any(n.is_expanded for n in branches())
+        assert not any(n.is_expanded for n in branches()), "tags start folded"
+        await pilot.press("F")
+        await pilot.pause()
+        assert all(n.is_expanded for n in branches())
         await pilot.press("F")
         await pilot.pause()
         assert not any(n.is_expanded for n in branches())

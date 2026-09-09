@@ -88,6 +88,27 @@ def strip_title_and_tags(content: str) -> str:
     return "\n".join(lines[i:])
 
 
+_MARKUP_RE = re.compile(r"\*|__|==|`|~~|\[([ xX])\]|^\s*(?:[-*+]|\d+[.)])\s+|^#{1,6}\s+|^>\s*", re.MULTILINE)
+
+
+def preview(content: str, limit: int = 240) -> str:
+    """Body text flattened to one line for the notes list, the way Bear previews
+    a note under its title: no H1, no tag line, no markdown markers."""
+    words: list[str] = []
+    length = 0
+    for line in strip_title_and_tags(content).splitlines():
+        if _FENCE_RE.match(line):
+            continue
+        text = " ".join(_MARKUP_RE.sub("", line).split())
+        if not text:
+            continue
+        words.append(text)
+        length += len(text) + 1
+        if length >= limit:
+            break
+    return " ".join(words)[:limit]
+
+
 def snippet(content: str, width: int = 80) -> str:
     """First line of body text, for the notes list."""
     for line in strip_title_and_tags(content).splitlines():

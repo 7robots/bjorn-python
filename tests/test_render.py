@@ -1,4 +1,4 @@
-from bjorn.render import DONE_BOX, OPEN_BOX, head_of, is_tag_line, preprocess, snippet, strip_title_and_tags
+from bjorn.render import DONE_BOX, OPEN_BOX, head_of, is_tag_line, preprocess, preview, snippet, strip_title_and_tags
 
 
 def test_tasks_become_glyphs_outside_fences():
@@ -35,3 +35,10 @@ def test_head_of_and_snippet():
     assert strip_title_and_tags(body).startswith("## Section")
     assert snippet(body) == "Section"
     assert snippet("# Only title\n#tag\n") == ""
+
+
+def test_preview_flattens_body_without_title_tags_or_markers():
+    body = "# Title\n#work/sprint #home\n\n## Frame\n- [ ] Brace the *north* wall\n> quoted `code`\n```\nfenced\n```\nend"
+    assert preview(body) == "Frame Brace the north wall quoted code fenced end"
+    assert preview("# Only title\n#tag\n") == ""
+    assert len(preview("word " * 100, limit=40)) == 40

@@ -10,7 +10,7 @@ from textual.containers import Vertical
 from textual.message import Message
 from textual.widgets import Input, Label, ListItem, ListView, Static
 
-from ..bear import Note, display_tag
+from ..bear import Note
 
 
 def relative_date(when: datetime | None, now: datetime | None = None) -> str:
@@ -32,10 +32,34 @@ def relative_date(when: datetime | None, now: datetime | None = None) -> str:
     return local.strftime("%Y-%m-%d")
 
 
-def leaf_tags(note: Note) -> list[str]:
-    """Tags with no deeper tag under them on this note: what Bear shows in the list."""
-    tags = list(note.tags)
-    return [t for t in tags if not any(o != t and o.startswith(t + "/") for o in tags)]
+class PreviewText(Static):
+    """Two rows under the title: the date and counters, then the body preview
+    flowing on, wrapped to the row width and cut with an ellipsis."""
+
+    ROWS = 2
+
+    def __init__(self, lead: Text, body: str) -> None:
+        super().__init__()
+        self.lead = lead
+        self.body = body
+
+    def render(self) -> Text:
+        width = self.size.width
+        if width <= 0:
+            return Text("")
+        text = self.lead.copy()
+        if self.body:
+            if text.plain:
+                text.append("  ")
+            text.append(self.body, "dim")
+        lines = text.wrap(self.app.console, width, overflow="ellipsis", no_wrap=False)
+        clipped = list(lines[: self.ROWS])
+        if len(lines) > self.ROWS and clipped:
+            last = clipped[-1]
+            last.rstrip()
+            last.truncate(width - 1)
+            last.append("…", "dim")
+        return Text("\n").join(clipped)
 
 
 class NoteItem(ListItem):
@@ -49,19 +73,13 @@ class NoteItem(ListItem):
         if note.pinned:
             title.append("📌 ", "yellow")
         title.append(note.title, "bold")
-        details = Text(relative_date(note.modified), "dim")
+        lead = Text(relative_date(note.modified), "dim")
         if note.todos:
-            details.append(f"  ☐ {note.todos}", "dim")
+            lead.append(f"  ☐ {note.todos}", "dim")
         if note.locked:
-            details.append("  🔒", "dim")
-        tags = leaf_tags(note)
-        if tags:
-            shown = " ".join(display_tag(t) for t in tags[:2])
-            if len(tags) > 2:
-                shown += f" +{len(tags) - 2}"
-            details.append(f"  {shown}", "dim italic")
+            lead.append("  🔒", "dim")
         yield Label(title, classes="note-title")
-        yield Label(details, classes="note-details")
+        yield PreviewText(lead, note.preview)
 
 
 class NotesListView(ListView):
@@ -112,13 +130,15 @@ class NoteList(Vertical):
     }
     NoteList > #notes > ListItem {
         padding: 0 1;
-        height: 2;
+        height: 4;
+        border-bottom: solid $panel-lighten-2;
     }
     NoteList > #notes > ListItem .note-title {
         width: 1fr;
     }
-    NoteList > #notes > ListItem .note-details {
+    NoteList > #notes > ListItem PreviewText {
         width: 1fr;
+        height: 2;
     }
     NoteList > #empty {
         display: none;

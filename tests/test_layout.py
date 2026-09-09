@@ -85,11 +85,26 @@ async def test_mouse_click_selects_without_stealing_focus(make_app):
         assert app.focused is app.note_view.scroll_view
         tree = app.sidebar.tree
         home = tree.root.children[0]
-        assert home.is_expanded
+        assert not home.is_expanded, "tags start folded"
         await pilot.click(tree, offset=(4, 0))
         await wait_until(lambda: app.selection.tag == "home")
-        assert home.is_expanded, "clicking a tag must select it, not collapse it"
+        assert not home.is_expanded, "clicking a tag must select it, not toggle it"
         assert app.focused is tree
         await pilot.click("#view-untagged")
         await wait_until(lambda: titles(app) == ["Loose Thought"])
         assert app.focused is app.sidebar.views
+
+
+async def test_note_rows_show_a_preview_and_no_tags(make_app):
+    from bjorn.widgets.note_list import PreviewText
+
+    app = make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        await loaded(app, pilot)
+        await pilot.pause()
+        first = app.note_list.list_view.query("NoteItem").first()
+        assert first.note.preview
+        rendered = first.query_one(PreviewText).render().plain
+        assert first.note.preview.split()[0] in rendered
+        assert "#" not in rendered
+        assert rendered.count("\n") <= 1

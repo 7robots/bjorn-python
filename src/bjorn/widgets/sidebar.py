@@ -38,7 +38,7 @@ class Sidebar(Vertical):
 
     DEFAULT_CSS = """
     Sidebar {
-        width: 26;
+        width: 30;
         min-width: 20;
         height: 1fr;
         border-right: solid $panel-lighten-2;
@@ -133,7 +133,9 @@ class Sidebar(Vertical):
             self._remember_folds()
             root = build_tag_tree(snapshot, workspace)
             tree.clear()
-            self._fill(tree.root, root, expand_depth=1 if not workspace else 99)
+            # Every tag starts folded, as in a fresh Bear sidebar; a workspace
+            # is one subtree, so it opens fully.
+            self._fill(tree.root, root, expand_depth=0 if not workspace else 99)
             if keep_tag:
                 self.move_to_tag(keep_tag)
         finally:
@@ -182,6 +184,10 @@ class Sidebar(Vertical):
                 while ancestor is not None:
                     ancestor.expand()
                     ancestor = ancestor.parent
+                if node.line == -1:
+                    # expand() only marks the tree dirty; the node gets its line
+                    # on the next rebuild, which any line lookup forces.
+                    self.tree.get_node_at_line(0)
                 self.tree.move_cursor(node)
                 if not self._suppress:
                     self.post_message(self.TagSelected(tag))
