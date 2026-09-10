@@ -42,7 +42,7 @@ async def test_new_note_defaults_tags_to_selected_tag(make_app):
         assert app.screen.query_one("#tags").value == "home"
         await pilot.press("escape")
         await pilot.pause()
-        assert type(app.screen).__name__ == "Screen"
+        assert type(app.screen).__name__ == "BjornScreen"
 
 
 async def test_trash_needs_confirmation_then_restore(make_app, client):
@@ -63,7 +63,7 @@ async def test_trash_needs_confirmation_then_restore(make_app, client):
         await wait_until(lambda: titles(app) == ["Sprint Planning", "Old Draft"])
         await pilot.press("d")
         await pilot.pause()
-        assert type(app.screen).__name__ == "Screen"
+        assert type(app.screen).__name__ == "BjornScreen"
         await pilot.press("u")
         await wait_until(lambda: titles(app) == ["Old Draft"])
         await pilot.press("1")

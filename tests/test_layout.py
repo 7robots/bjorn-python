@@ -69,7 +69,7 @@ async def test_help_screen_opens_and_closes(make_app):
         assert type(app.screen).__name__ == "HelpScreen"
         await pilot.press("escape")
         await pilot.pause()
-        assert type(app.screen).__name__ == "Screen"
+        assert type(app.screen).__name__ == "BjornScreen"
 
 
 async def test_mouse_click_selects_without_stealing_focus(make_app):

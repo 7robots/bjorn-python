@@ -26,6 +26,7 @@ from .icons import IconSet
 from .model import Selection, View, duplicate_titles, select_notes
 from .reminders import RemctlClient, RemctlError, join as join_reminders, remctl_found, resolve_remctl
 from .render import AUTO_COMPLETE_LINES, BROWSE_LINES
+from .screen import BjornScreen
 from .todos import scan_rows
 from .widgets.modals import ConfirmScreen, HelpScreen, NewNotePrompt, TextPrompt
 from .widgets.note_list import NoteList
@@ -109,6 +110,9 @@ class BjornApp(App[None]):
         self._reload_lock = asyncio.Lock()
 
     # -- layout ------------------------------------------------------------------
+
+    def get_default_screen(self) -> BjornScreen:
+        return BjornScreen()
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="columns"):
@@ -496,7 +500,7 @@ class BjornApp(App[None]):
                 failures.append(f"{todo.text[:40]}: {exc}")
         screen = self.triage
         if screen is not None and ticked:
-            screen.note_removed(ticked)
+            await screen.note_removed(ticked)
         if failures:
             self.notify("\n".join(failures), title="Some todos were not ticked (the line changed in Bear?)", severity="warning", timeout=10)
         elif ticked:

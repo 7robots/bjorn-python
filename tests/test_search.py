@@ -47,5 +47,5 @@ async def test_typing_in_search_does_not_trigger_bindings(make_app):
         await pilot.pause()
         assert app.is_running
         assert app.note_list.search_input.value == "dnq"
-        assert type(app.screen).__name__ == "Screen"
+        assert type(app.screen).__name__ == "BjornScreen"
         await pilot.press("escape")
