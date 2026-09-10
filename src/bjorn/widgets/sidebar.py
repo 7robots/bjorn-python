@@ -28,23 +28,30 @@ class ViewItem(ListItem):
     ViewItem > Horizontal > .view-label {
         width: 1fr;
     }
+    ViewItem > Horizontal > .view-count {
+        width: 5;
+        text-align: right;
+        text-style: dim;
+    }
     ViewItem > Horizontal > .view-hotkey {
-        width: 1;
+        width: 3;
+        text-align: right;
         color: $text-muted;
     }
     """
 
     def _text(self) -> Text:
-        return Text.assemble(self.icon, self.view.label, (f"  {self.count}", "dim"))
+        return Text.assemble(self.icon, self.view.label)
 
     def compose(self) -> ComposeResult:
         with Horizontal():
             yield Label(self._text(), id=f"label-{self.view.value}", classes="view-label")
+            yield Label(str(self.count), classes="view-count")
             yield Label(self.view.hotkey, classes="view-hotkey")
 
     def update_count(self, count: int) -> None:
         self.count = count
-        self.query_one(".view-label", Label).update(self._text())
+        self.query_one(".view-count", Label).update(str(count))
 
 
 class Sidebar(Vertical):
