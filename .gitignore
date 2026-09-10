@@ -14,3 +14,22 @@ wheels/
 
 # macOS
 .DS_Store
+
+# Local AI-assistant and editor state
+CLAUDE.md
+CLAUDE.local.md
+.claude/
+.mcp.json
+
+# Secrets and local-only files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+private/
+.private/
+sessions/
+.sessions/
+*.session
