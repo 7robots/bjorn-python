@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from rich.cells import cell_len
+from rich.style import Style
 from rich.text import Text
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
@@ -52,6 +54,39 @@ class ViewItem(ListItem):
     def update_count(self, count: int) -> None:
         self.count = count
         self.query_one(".view-count", Label).update(str(count))
+
+
+class TagTree(Tree[str]):
+    """The tag tree with every note count flush against the right edge.
+
+    Textual caches each rendered line with the widget width in the key, so
+    padding the label out to the width here re-renders correctly on resize.
+    The padded label is the row, so the cursor and hover highlight span it
+    like the smart-view rows above. A tag too long to fit keeps one space
+    before its count and the tree scrolls sideways as before.
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.counts: dict[str, int] = {}
+
+    def render_label(self, node: TreeNode[str], base_style: Style, style: Style) -> Text:
+        text = super().render_label(node, base_style, style)
+        count = self.counts.get(node.data or "")
+        if count is None:
+            return text
+        depth = 0
+        parent = node.parent
+        while parent is not None:
+            depth += 1
+            parent = parent.parent
+        if not self.show_root:
+            depth -= 1  # the hidden root draws no guide
+        count_text = str(count)
+        pad = self.size.width - depth * self.guide_depth - text.cell_len - cell_len(count_text)
+        text.append(" " * max(pad, 1), style)
+        text.append(count_text, style + Style(dim=True))
+        return text
 
 
 class Sidebar(Vertical):
@@ -120,7 +155,7 @@ class Sidebar(Vertical):
         yield Static("BJORN", id="sidebar-header")
         yield ListView(*[ViewItem(v, 0, self.icons.for_view(v.value)) for v in View], id="views")
         yield Static("TAGS", id="tags-label")
-        tree: Tree[str] = Tree("Tags", id="tags")
+        tree = TagTree("Tags", id="tags")
         tree.show_root = False
         tree.guide_depth = 2
         # A click on a tag selects it; only the arrow (or space) toggles the
@@ -133,8 +168,8 @@ class Sidebar(Vertical):
         return self.query_one("#views", ListView)
 
     @property
-    def tree(self) -> Tree:
-        return self.query_one("#tags", Tree)
+    def tree(self) -> TagTree:
+        return self.query_one("#tags", TagTree)
 
     # -- populate --------------------------------------------------------------
 
@@ -155,6 +190,7 @@ class Sidebar(Vertical):
             self._remember_folds()
             root = build_tag_tree(snapshot, workspace)
             tree.clear()
+            tree.counts.clear()
             # Every tag starts folded, as in a fresh Bear sidebar; a workspace
             # is one subtree, so it opens fully.
             self._fill(tree.root, root, expand_depth=0 if not workspace else 99)
@@ -189,7 +225,8 @@ class Sidebar(Vertical):
     def _fill(self, parent: TreeNode, node: TagNode, expand_depth: int, depth: int = 0) -> None:
         for child in node.sorted_children():
             icon = self.icons.for_tag(child.path) if "/" not in child.path else ""
-            label = Text.assemble(icon, child.name, (f" {child.count}", "dim"))
+            label = Text.assemble(icon, child.name)
+            self.tree.counts[child.path] = child.count
             if child.children:
                 expand = self._expanded.get(child.path, depth < expand_depth)
                 tn = parent.add(label, data=child.path, expand=expand)

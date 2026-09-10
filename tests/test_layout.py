@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from rich.cells import cell_len
+
 from bjorn.render import OPEN_BOX
 from bjorn.widgets.note_list import NoteList
 from bjorn.widgets.note_view import NoteView
@@ -108,3 +110,23 @@ async def test_note_rows_show_a_preview_and_no_tags(make_app):
         assert first.note.preview.split()[0] in rendered
         assert "#" not in rendered
         assert rendered.count("\n") <= 1
+
+
+async def test_tag_counts_sit_flush_right_at_every_depth(make_app):
+    app = make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        await loaded(app, pilot)
+        tree = app.sidebar.tree
+        await pilot.press("F")  # unfold every tag so nested rows render too
+        await pilot.pause()
+        width = tree.size.width
+        rows = 0
+        for line in range(len(tree._tree_lines)):
+            strip = tree._render_line(line, 0, width, tree.rich_style)
+            text = strip.text.rstrip()
+            if not text:
+                continue
+            rows += 1
+            assert cell_len(text) == width, text  # the count is the last cell of the row
+            assert text.split()[-1].isdigit(), text
+        assert rows >= 3 and any(len(l.path) > 1 for l in tree._tree_lines)  # at least one nested tag (paths omit the hidden root)
