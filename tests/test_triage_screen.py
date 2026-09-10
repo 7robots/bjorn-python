@@ -154,3 +154,21 @@ async def test_goto_a_note_outside_the_current_list(make_app):
         await wait_until(lambda: not isinstance(app.screen, TriageScreen))
         await wait_until(lambda: app.note_list.current() is not None and app.note_list.current().id == "NOTE-PLANNING")
         assert app.selection.view.value == "all"
+
+
+async def test_a_ticked_row_leaves_the_list_before_the_next_key(make_app):
+    """Ticking dropped the row from the state but left it in the list view until
+    the reload landed. A mark in that window hit a TriageRow no longer in
+    `state.rows` and was silently lost."""
+    app = make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        await loaded(app, pilot)
+        screen = await open_triage(app, pilot)
+        await pilot.press("x")
+        await wait_until(lambda: "write the release notes" not in texts(screen))
+        assert [item.row.todo.text for item in screen._items] == texts(screen)
+        # the cursor moves down to the next surviving todo, not back to the top
+        assert screen.current_row().todo.text == "ask Priya about the API deprecation"
+        await pilot.press("space")
+        await pilot.pause()
+        assert [r.todo.text for r in screen.state.marked] == ["ask Priya about the API deprecation"]

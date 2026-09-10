@@ -500,7 +500,7 @@ class BjornApp(App[None]):
                 failures.append(f"{todo.text[:40]}: {exc}")
         screen = self.triage
         if screen is not None and ticked:
-            screen.note_removed(ticked)
+            await screen.note_removed(ticked)
         if failures:
             self.notify("\n".join(failures), title="Some todos were not ticked (the line changed in Bear?)", severity="warning", timeout=10)
         elif ticked:

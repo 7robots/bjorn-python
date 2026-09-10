@@ -369,8 +369,24 @@ class TriageScreen(SafeSelectMixin, Screen[None]):
         self._close_filter()
         self.run_worker(self._rebuild(), exclusive=True, group="triage-rebuild")
 
-    def note_removed(self, rows: list[TriageRow]) -> None:
-        """Drop rows after a successful tick; the app reloads anyway, this keeps
-        the screen honest in between."""
+    async def note_removed(self, rows: list[TriageRow]) -> None:
+        """Drop rows after a successful tick and rebuild the list with them gone.
+        The app reloads right after, but until it does the list must not still
+        offer a todo that has been ticked: marking or ticking such a row acts on
+        a `TriageRow` no longer in `state.rows`, and the action is silently lost.
+        """
         keys = {r.todo.key for r in rows}
+        keep_key = self._key_after(keys)
         self.state.rows = [r for r in self.state.rows if r.todo.key not in keys]
+        await self._rebuild(keep_key=keep_key)
+
+    def _key_after(self, removed: set[str]) -> str | None:
+        """Where the cursor should land once `removed` is gone: the next todo at
+        or below it that survives, else the nearest one above."""
+        index = self.list_view.index or 0
+        keys = [item.row.todo.key for item in self._items]
+        below = [k for k in keys[index:] if k not in removed]
+        if below:
+            return below[0]
+        above = [k for k in keys[:index] if k not in removed]
+        return above[-1] if above else None
