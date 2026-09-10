@@ -94,3 +94,24 @@ async def test_missing_binary_is_a_bear_error():
     with pytest.raises(BearError) as info:
         await BearClient("/nonexistent/bearcli").snapshot()
     assert info.value.code == "not_found"
+
+
+def test_resolve_bearcli_falls_back_to_the_app_bundle(monkeypatch, tmp_path):
+    from bjorn import bear
+
+    monkeypatch.delenv(bear.ENV_COMMAND, raising=False)
+    monkeypatch.setattr(bear.shutil, "which", lambda _cmd: None)
+    bundled = tmp_path / "Bear.app" / "Contents" / "MacOS" / "bearcli"
+    bundled.parent.mkdir(parents=True)
+    bundled.write_text("#!/bin/sh\n")
+    bundled.chmod(0o755)
+    monkeypatch.setattr(bear, "APP_BUNDLE_COMMANDS", (str(tmp_path / "missing"), str(bundled)))
+
+    assert bear.resolve_bearcli() == str(bundled)
+    assert bear.resolve_bearcli("/opt/bearcli") == "/opt/bearcli"  # config still wins
+    monkeypatch.setenv(bear.ENV_COMMAND, "/env/bearcli")
+    assert bear.resolve_bearcli("/opt/bearcli") == "/env/bearcli"  # env wins over config
+
+    monkeypatch.delenv(bear.ENV_COMMAND)
+    monkeypatch.setattr(bear, "APP_BUNDLE_COMMANDS", ())
+    assert bear.resolve_bearcli() == "bearcli"  # nothing found: PATH name, so the not_found error still names it

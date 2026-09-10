@@ -24,6 +24,12 @@ from .render import preview
 ENV_COMMAND = "BJORN_BEARCLI"
 DEFAULT_COMMAND = "bearcli"
 
+#: Where Bear ships bearcli. Used when nothing on PATH is called `bearcli`.
+APP_BUNDLE_COMMANDS = (
+    "/Applications/Bear.app/Contents/MacOS/bearcli",
+    os.path.expanduser("~/Applications/Bear.app/Contents/MacOS/bearcli"),
+)
+
 #: Every metadata field `list` can return. Content is fetched separately.
 LIST_FIELDS = "id,title,locked,tags,length,created,modified,pins,location,todos,done,attachments,content"
 
@@ -46,8 +52,16 @@ class BearError(Exception):
 
 
 def resolve_bearcli(configured: str = "") -> str:
-    """The bearcli to run: `$BJORN_BEARCLI`, else the config value, else PATH."""
-    return os.environ.get(ENV_COMMAND, "").strip() or configured.strip() or DEFAULT_COMMAND
+    """The bearcli to run: `$BJORN_BEARCLI`, else the config value, else PATH, else inside Bear.app."""
+    explicit = os.environ.get(ENV_COMMAND, "").strip() or configured.strip()
+    if explicit:
+        return explicit
+    if shutil.which(DEFAULT_COMMAND) is not None:
+        return DEFAULT_COMMAND
+    for candidate in APP_BUNDLE_COMMANDS:
+        if os.access(candidate, os.X_OK):
+            return candidate
+    return DEFAULT_COMMAND
 
 
 def bearcli_found(configured: str = "") -> bool:

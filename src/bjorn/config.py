@@ -6,7 +6,7 @@ Every key is optional. Example:
     export_dir = "~/Documents/exports"
     poll_seconds = 5
     workspace = "work"
-    bearcli = "/usr/local/bin/bearcli"
+    bearcli = "/usr/local/bin/bearcli"   # optional; default searches PATH, then Bear.app
     icon_style = "auto"          # auto | nerd | emoji | lucide | none
     mouse_pixels = true          # false works around SwiftTerm-based terminals (Tecolot)
 

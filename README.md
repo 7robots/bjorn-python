@@ -15,7 +15,8 @@ editing, nothing is written and your version is kept in a temp file.
 
 ## Install
 
-Requires macOS with Bear installed (`bearcli` at `/usr/local/bin/bearcli`),
+Requires macOS with Bear installed (Bjorn finds `bearcli` on `PATH` or inside
+`/Applications/Bear.app`; set `bearcli = "..."` in the config for anywhere else),
 Python 3.12+, and [uv](https://docs.astral.sh/uv/).
 
 ```sh
@@ -78,7 +79,7 @@ editor = "nvim"               # overrides $VISUAL / $EDITOR
 export_dir = "~/Downloads"    # where `x` proposes to write
 poll_seconds = 5              # 0 disables the background refresh
 workspace = "work"            # start scoped to this tag
-bearcli = "/usr/local/bin/bearcli"
+bearcli = "/usr/local/bin/bearcli"  # optional; default searches PATH, then Bear.app
 icon_style = "auto"           # auto | nerd | emoji | lucide | none
 mouse_pixels = true           # set false in Tecolot / SwiftTerm terminals (see below)
 
