@@ -151,9 +151,16 @@ class BjornApp(App[None]):
                 self.notify(f"Could not fetch the wallpaper: {exc}", title="Empty page", severity="warning", timeout=6)
                 return
             self.notify(wallpaper.CREDIT, title="Empty page", timeout=6)
-        if path is not None and self.is_running:
+        if path is None:
+            return
+        try:
+            shown = await asyncio.to_thread(wallpaper.styled_image, path, self.config.empty_image_style, self.environ)
+        except OSError as exc:
+            self.notify(f"Could not prepare the empty page picture: {exc}", title="Empty page", severity="warning", timeout=6)
+            return
+        if self.is_running:
             async with self._render_lock:
-                await self.note_view.set_picture(path, widget_class)
+                await self.note_view.set_picture(shown, widget_class)
 
     # -- columns -----------------------------------------------------------------
 
@@ -845,7 +852,7 @@ def run(*, tag: str | None = None, config_path: str | None = None, demo: bool = 
         client = BearClient([sys.executable, str(Path(__file__).with_name("fake_bearcli.py"))])
         config.reminders.enabled = True
         remctl = RemctlClient([sys.executable, str(Path(__file__).with_name("fake_remctl.py"))])
-    wallpaper.probe()  # asks the terminal about graphics; must precede Textual
+    wallpaper.probe(dict(os.environ))  # asks the terminal about graphics; must precede Textual
     app = BjornApp(config, client=client, remctl=remctl, workspace=tag)
     if not config.mouse_pixels and sys.platform != "win32":
         app.driver_class = cell_mouse_driver_class()

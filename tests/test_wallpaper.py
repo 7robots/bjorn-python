@@ -103,3 +103,34 @@ async def test_wallpaper_off_or_no_graphics_keeps_the_ascii_bear(make_app, tmp_p
         await wait_until(lambda: app.note_view.empty)
         await pilot.pause(0.2)
         assert not app.note_view.has_picture
+
+
+def test_outline_is_transparent_line_art_and_cached_by_source(tmp_path):
+    env = {"XDG_CACHE_HOME": str(tmp_path / "cache")}
+    source = tmp_path / "pic.png"
+    img = PILImage.new("RGB", (400, 300), (30, 50, 90))
+    for x in range(100, 300):
+        for y in range(100, 200):
+            img.putpixel((x, y), (240, 240, 250))  # a bright box: its edges are the only lines
+    img.save(source)
+    out = wallpaper.styled_image(source, "outline", env)
+    assert out.parent == wallpaper.cache_path(env).parent and "outline" in out.name
+    with PILImage.open(out) as result:
+        assert result.mode == "RGBA"
+        alpha = result.getchannel("A")
+        opaque = sum(1 for v in alpha.tobytes() if v > 128)
+        assert 0 < opaque < 0.1 * result.width * result.height  # a few lines, mostly transparent
+        assert alpha.getpixel((5, 5)) == 0 and alpha.getpixel((200, 150)) == 0  # flat areas are clear
+        assert alpha.getpixel((100 - 3, 150 - 3)) > 128  # the box's left edge is drawn (shifted by the 3px crop)
+    assert wallpaper.styled_image(source, "outline", env) == out  # cached
+    assert wallpaper.styled_image(source, "colour", env) == source
+
+
+def test_only_trusted_terminals_get_graphics():
+    assert wallpaper.supports_graphics({"TERM_PROGRAM": "ghostty"})
+    assert wallpaper.supports_graphics({"TERM_PROGRAM": "WezTerm"})
+    assert wallpaper.supports_graphics({"TERM": "xterm-kitty"})
+    assert wallpaper.supports_graphics({"KITTY_WINDOW_ID": "1"})
+    assert not wallpaper.supports_graphics({"TERM_PROGRAM": "Apple_Terminal"})
+    assert not wallpaper.supports_graphics({"TERM_PROGRAM": "Tecolot", "TERM": "xterm-256color"})
+    assert not wallpaper.supports_graphics({})

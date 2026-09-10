@@ -11,6 +11,7 @@ Every key is optional. Example:
     mouse_pixels = true          # false works around SwiftTerm-based terminals (Tecolot)
     wallpaper = true             # fetch Shiny Frog's Astro-Bear for the empty page (Ghostty, kitty)
     empty_image = ""             # or a picture of your own for the empty page
+    empty_image_style = "outline"  # outline (Bear-like line art) | colour
 
     [icons]                      # top-level tag -> Lucide icon name or emoji:<glyph>
     tech = "terminal"
@@ -72,6 +73,8 @@ class Config:
     #: `wallpaper` is true; a path here is used instead and never fetched.
     empty_image: str = ""
     wallpaper: bool = True
+    #: "outline" reduces the picture to Bear-like line art; "colour" shows it as is.
+    empty_image_style: str = "outline"
     reminders: RemindersConfig = field(default_factory=RemindersConfig)
     path: Path | None = None
 
@@ -101,6 +104,8 @@ class Config:
         cfg.mouse_pixels = bool(data.get("mouse_pixels", True))
         cfg.empty_image = str(data.get("empty_image", "") or "").strip()
         cfg.wallpaper = bool(data.get("wallpaper", True))
+        style = str(data.get("empty_image_style", "outline") or "outline").strip().lower()
+        cfg.empty_image_style = "colour" if style in ("colour", "color") else "outline"
         section = data.get("reminders")
         if isinstance(section, dict):
             due = section.get("due", "today")
