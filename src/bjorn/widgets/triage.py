@@ -17,6 +17,7 @@ from textual.widgets import Footer, Input, Label, ListItem, ListView, Static
 from .note_list import NotesListView
 
 from ..bear import display_tag
+from ..screen import SafeSelectMixin
 from ..todos import Todo, TodoScan
 
 Status = Literal["new", "added", "done"]
@@ -95,7 +96,7 @@ class TodoItem(ListItem):
         self.query_one("#todo-label", Label).update(self.render_text())
 
 
-class TriageScreen(Screen[None]):
+class TriageScreen(SafeSelectMixin, Screen[None]):
     """Grouped todos with mark / tick / go-to / open-in-Bear / add-to-Reminders.
 
     The screen owns nothing but display state; every action is a message the

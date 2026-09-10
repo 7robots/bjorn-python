@@ -8,12 +8,14 @@ from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Label, Static
 
+from ..screen import SafeSelectMixin
+
 _DIALOG_CSS = """
 $dialog-width: 60;
 """
 
 
-class ConfirmScreen(ModalScreen[bool]):
+class ConfirmScreen(SafeSelectMixin, ModalScreen[bool]):
     DEFAULT_CSS = """
     ConfirmScreen {
         align: center middle;
@@ -65,7 +67,7 @@ class ConfirmScreen(ModalScreen[bool]):
         self.dismiss(False)
 
 
-class TextPrompt(ModalScreen[str | None]):
+class TextPrompt(SafeSelectMixin, ModalScreen[str | None]):
     """One line of text; None on escape."""
 
     DEFAULT_CSS = """
@@ -113,7 +115,7 @@ class TextPrompt(ModalScreen[str | None]):
         self.dismiss(None)
 
 
-class NewNotePrompt(ModalScreen[tuple[str, str] | None]):
+class NewNotePrompt(SafeSelectMixin, ModalScreen[tuple[str, str] | None]):
     """Title and tags for a new note; None on escape."""
 
     DEFAULT_CSS = """
@@ -206,7 +208,7 @@ editor, nothing is written and your version is kept in a temp file.
 """
 
 
-class HelpScreen(ModalScreen[None]):
+class HelpScreen(SafeSelectMixin, ModalScreen[None]):
     DEFAULT_CSS = """
     HelpScreen {
         align: center middle;
