@@ -3,12 +3,34 @@
 from __future__ import annotations
 
 from textual.app import ComposeResult
-from textual.containers import Vertical, VerticalScroll
+from textual import events
+from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.message import Message
 from textual.widgets import Markdown, Static
 
 from ..bear import Note
 from ..render import head_of, preprocess
+
+#: Glyph per column count: a hollow block for each hidden column.
+COLUMN_GLYPHS = {3: "▮▮▮", 2: "▯▮▮", 1: "▯▯▮"}
+
+
+class ColumnsToggle(Static):
+    """The mouse's way to cycle the columns; the app owns the state."""
+
+    class Pressed(Message):
+        pass
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(COLUMN_GLYPHS[3], **kwargs)
+        self.tooltip = "Hide / show the tag and note columns (c)"
+
+    def show_columns(self, count: int) -> None:
+        self.update(COLUMN_GLYPHS[count])
+
+    def on_click(self, event: events.Click) -> None:
+        event.stop()
+        self.post_message(self.Pressed())
 
 
 class NoteView(Vertical):
@@ -17,14 +39,26 @@ class NoteView(Vertical):
         width: 1fr;
         height: 1fr;
     }
-    NoteView > #note-header {
+    NoteView > #note-bar {
         height: 1;
-        padding: 0 1;
         background: $primary-background;
+    }
+    NoteView #columns-toggle {
+        width: auto;
+        padding: 0 1;
+        color: $text-muted;
+    }
+    NoteView #columns-toggle:hover {
+        color: $accent;
+        text-style: bold;
+    }
+    NoteView #note-header {
+        width: 1fr;
+        padding: 0 1 0 0;
         color: $success;
         text-style: bold;
     }
-    NoteView:focus-within > #note-header {
+    NoteView:focus-within #note-header {
         color: $accent;
     }
     NoteView > #note-scroll {
@@ -48,7 +82,9 @@ class NoteView(Vertical):
         self._rendered_full = True
 
     def compose(self) -> ComposeResult:
-        yield Static("", id="note-header")
+        with Horizontal(id="note-bar"):
+            yield ColumnsToggle(id="columns-toggle")
+            yield Static("", id="note-header")
         with VerticalScroll(id="note-scroll"):
             yield Markdown("", id="note-markdown", open_links=False)
         yield Static("", id="note-meta")

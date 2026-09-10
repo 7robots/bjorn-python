@@ -195,6 +195,7 @@ Three columns: smart views and tags · notes · the rendered note.
 | `f` | fold / unfold the highlighted tag's subtree |
 | `F` | fold every tag, or unfold every tag when all are folded (within the workspace if one is set) |
 | `t` | triage: every open todo in the workspace, grouped by note |
+| `c` | cycle the columns: hide tags, then notes too, then show all three (or click ▮▮▮ in the note header) |
 | `r` | refresh from Bear now |
 | `?` | this help · `q` quit |
 

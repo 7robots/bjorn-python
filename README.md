@@ -40,7 +40,7 @@ bjorn --demo          # sample notes through a built-in fake bearcli, no Bear ne
 | `p` | toggle the global pin | `x` | export as Markdown |
 | `b` | open in Bear.app | `w` | set the workspace; again to leave it |
 | `f` / `F` | fold / unfold a tag subtree / all tags | `W` | clear the workspace |
-| `t` | triage the workspace's open todos | | |
+| `t` | triage the workspace's open todos | `c` / click `▮▮▮` | hide the tag column, then the note column, then show all |
 | `r` | refresh now | `?` `q` | help, quit |
 
 The **workspace** is a tag subtree that scopes the whole app: the tag tree

@@ -30,7 +30,7 @@ from .screen import BjornScreen
 from .todos import scan_rows
 from .widgets.modals import ConfirmScreen, HelpScreen, NewNotePrompt, TextPrompt
 from .widgets.note_list import NoteList
-from .widgets.note_view import NoteView
+from .widgets.note_view import ColumnsToggle, NoteView
 from .widgets.sidebar import Sidebar
 from .widgets.triage import TriageRow, TriageScreen
 
@@ -68,6 +68,7 @@ class BjornApp(App[None]):
         Binding("W", "clear_workspace", "Clear workspace", show=False),
         Binding("f", "fold_tag", "Fold"),
         Binding("t", "triage", "Triage"),
+        Binding("c", "cycle_columns", "Columns"),
         Binding("F", "fold_all", "Fold all", show=False),
         Binding("j", "cursor(1)", "Down", show=False),
         Binding("k", "cursor(-1)", "Up", show=False),
@@ -132,6 +133,30 @@ class BjornApp(App[None]):
     @property
     def note_view(self) -> NoteView:
         return self.query_one("#note-view", NoteView)
+
+    # -- columns -----------------------------------------------------------------
+
+    #: How many columns are showing: 3 = tags · notes · note, 2 = notes · note, 1 = note.
+    columns: int = 3
+
+    def action_cycle_columns(self) -> None:
+        """`c`: hide the tag column, then the note column too, then show all three."""
+        self.set_columns(3 if self.columns == 1 else self.columns - 1)
+
+    @on(ColumnsToggle.Pressed)
+    def _on_columns_toggle(self) -> None:
+        self.action_cycle_columns()
+
+    def set_columns(self, count: int) -> None:
+        if count not in (1, 2, 3):
+            raise ValueError(f"columns must be 1, 2 or 3, not {count}")
+        self.columns = count
+        self.sidebar.display = count == 3
+        self.note_list.display = count >= 2
+        self.query_one(ColumnsToggle).show_columns(count)
+        focused = self.focused
+        if focused is not None and not (focused.display and all(a.display for a in focused.ancestors)):
+            (self.note_list.list_view if count >= 2 else self.note_view.scroll_view).focus()
 
     def on_mount(self) -> None:
         self.sidebar.set_workspace(self.selection.workspace)
