@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from rich.text import Text
 from textual.app import ComposeResult
-from textual.containers import Vertical
+from textual.containers import Horizontal, Vertical
 from textual.message import Message
 from textual.widgets import Label, ListItem, ListView, Static, Tree
 from textual.widgets.tree import TreeNode
@@ -21,15 +21,30 @@ class ViewItem(ListItem):
         self.count = count
         self.icon = icon
 
+    DEFAULT_CSS = """
+    ViewItem > Horizontal {
+        height: 1;
+    }
+    ViewItem > Horizontal > .view-label {
+        width: 1fr;
+    }
+    ViewItem > Horizontal > .view-hotkey {
+        width: 1;
+        color: $text-muted;
+    }
+    """
+
     def _text(self) -> Text:
-        return Text.assemble(self.icon, self.view.label, (f"  {self.count}", "dim"), (f"  {self.view.hotkey}", "dim"))
+        return Text.assemble(self.icon, self.view.label, (f"  {self.count}", "dim"))
 
     def compose(self) -> ComposeResult:
-        yield Label(self._text(), id=f"label-{self.view.value}")
+        with Horizontal():
+            yield Label(self._text(), id=f"label-{self.view.value}", classes="view-label")
+            yield Label(self.view.hotkey, classes="view-hotkey")
 
     def update_count(self, count: int) -> None:
         self.count = count
-        self.query_one(Label).update(self._text())
+        self.query_one(".view-label", Label).update(self._text())
 
 
 class Sidebar(Vertical):
