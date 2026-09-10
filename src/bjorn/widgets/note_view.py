@@ -4,12 +4,37 @@ from __future__ import annotations
 
 from textual.app import ComposeResult
 from textual import events
+from textual.content import Content
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.message import Message
 from textual.widgets import Markdown, Static
 
 from ..bear import Note
 from ..render import head_of, preprocess
+
+#: The empty page: a two-colour bear under a few stars, as Bear shows before a
+#: note is chosen. Every line is the same width so centring keeps the shape.
+EMPTY_ART_LINES = [
+    " ✦          ·               ✦ ",
+    "        .--.      .--.        ",
+    "   ·   (    `----'    )    ✦  ",
+    "       /  o        o  \\       ",
+    " ✦     \\     (__)     /   ·   ",
+    "        `-.________.-'        ",
+    "    ·          ✦           ·  ",
+]
+STAR_CHARS = "✦·"
+
+
+def empty_page(count: int) -> Content:
+    """The art with the stars in the accent colour, the bear in the widget's
+    own (muted) colour, and the count underneath."""
+    lines = []
+    for line in EMPTY_ART_LINES:
+        lines.append("".join(f"[$accent]{ch}[/$accent]" if ch in STAR_CHARS else ch for ch in line))
+    lines += ["", f"{count} notes" if count != 1 else "1 note"]
+    return Content.from_markup("\n".join(lines))
+
 
 #: Glyph per column count: a hollow block for each hidden column.
 COLUMN_GLYPHS = {3: "▮▮▮", 2: "▯▮▮", 1: "▯▯▮"}
@@ -73,6 +98,19 @@ class NoteView(Vertical):
         padding: 0 1;
         color: $text-muted;
     }
+    NoteView > #note-empty {
+        display: none;
+        height: 1fr;
+        content-align: center middle;
+        text-align: center;
+        color: $text-muted;
+    }
+    NoteView.empty > #note-empty {
+        display: block;
+    }
+    NoteView.empty > #note-scroll, NoteView.empty > #note-meta {
+        display: none;
+    }
     """
 
     def __init__(self, **kwargs) -> None:
@@ -87,6 +125,7 @@ class NoteView(Vertical):
             yield Static("", id="note-header")
         with VerticalScroll(id="note-scroll"):
             yield Markdown("", id="note-markdown", open_links=False)
+        yield Static("", id="note-empty")
         yield Static("", id="note-meta")
 
     @property
@@ -109,12 +148,29 @@ class NoteView(Vertical):
         self._note = None
         self._full_text = None
         self._rendered_full = True
+        self.remove_class("empty")
         self.query_one("#note-header", Static).update("")
         self.query_one("#note-meta", Static).update("")
         await self.markdown.update(f"*{message}*" if message else "")
 
+    async def show_empty(self, count: int) -> None:
+        """No note is chosen: the bear and how many notes the selection holds."""
+        self._note = None
+        self._full_text = None
+        self._rendered_full = True
+        self.query_one("#note-header", Static).update("")
+        self.query_one("#note-meta", Static).update("")
+        self.query_one("#note-empty", Static).update(empty_page(count))
+        self.add_class("empty")
+        await self.markdown.update("")
+
+    @property
+    def empty(self) -> bool:
+        return self.has_class("empty")
+
     async def show(self, note: Note, content: str, *, max_lines: int | None = None) -> bool:
         """Render a note. Returns True when only the head was rendered."""
+        self.remove_class("empty")
         self._note = note
         text = preprocess(content)
         self._full_text = text
@@ -136,6 +192,7 @@ class NoteView(Vertical):
         await self.markdown.update(self._full_text)
 
     async def show_error(self, note: Note, message: str) -> None:
+        self.remove_class("empty")
         self._note = note
         self._full_text = None
         self._rendered_full = True

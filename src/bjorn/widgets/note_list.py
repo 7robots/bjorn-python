@@ -196,24 +196,25 @@ class NoteList(Vertical):
         self.query_one("#notes-header", Static).update(text)
 
     async def show_notes(self, notes: list[Note], *, keep_id: str | None = None) -> None:
-        """Replace the list; keep the cursor on `keep_id` when it is still present."""
+        """Replace the list. With no `keep_id` this is a fresh selection and, as
+        in Bear, nothing is highlighted until the user moves into the list. With
+        one, the cursor stays on that note, or on its neighbour if it is gone."""
         self._notes = list(notes)
         lv = self.list_view
         previous = lv.index
         await lv.clear()
         await lv.extend([NoteItem(n) for n in self._notes])
         self.query_one("#empty", Static).set_class(not self._notes, "visible")
-        if not self._notes:
+        if not self._notes or keep_id is None:
+            lv.index = None
             self.post_message(self.Highlighted(None))
             return
-        target = 0
-        if keep_id is not None:
-            for i, n in enumerate(self._notes):
-                if n.id == keep_id:
-                    target = i
-                    break
-            else:
-                target = min(previous or 0, len(self._notes) - 1)
+        for i, n in enumerate(self._notes):
+            if n.id == keep_id:
+                target = i
+                break
+        else:
+            target = min(previous or 0, len(self._notes) - 1)
         lv.index = target
         # Setting the same index does not re-emit Highlighted; the caller needs
         # the current note either way.

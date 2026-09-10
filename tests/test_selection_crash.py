@@ -11,15 +11,17 @@ from __future__ import annotations
 from textual.events import MouseDown
 from textual.widgets._markdown import MarkdownBlock
 
-from helpers import loaded, wait_until
+from helpers import first_note, loaded, wait_until
 
 
 async def test_mouse_down_on_a_detached_markdown_block_does_not_crash(make_app):
     app = make_app()
     async with app.run_test(size=(120, 40)) as pilot:
         await loaded(app, pilot)
+        await first_note(app, pilot)
         await wait_until(lambda: bool(app.note_view.markdown.query(MarkdownBlock)))
         block = app.note_view.markdown.query(MarkdownBlock).first()
+        await wait_until(lambda: block.region.width > 0)  # laid out, so the hit test finds it
         region = block.region
         parent = block.parent
         x, y = region.x + 1, region.y

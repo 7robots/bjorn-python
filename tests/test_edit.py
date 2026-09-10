@@ -6,7 +6,7 @@ import os
 import stat
 from pathlib import Path
 
-from helpers import loaded, wait_until
+from helpers import first_note, loaded, wait_until
 
 
 def fake_editor(tmp_path: Path, script: str) -> str:
@@ -20,6 +20,7 @@ async def test_edit_round_trips_through_editor(make_app, client, tmp_path):
     app = make_app(environ={"EDITOR": editor})
     async with app.run_test(size=(120, 40)) as pilot:
         await loaded(app, pilot)
+        await first_note(app, pilot)
         await pilot.press("e")
         await wait_until(lambda: "Added from the editor" in app.note_view.markdown.source)
         content = await client.cat("NOTE-PLANNING")
@@ -32,6 +33,7 @@ async def test_visual_beats_editor_and_config_beats_both(make_app, config, tmp_p
     app = make_app(environ={"EDITOR": "definitely-not-an-editor", "VISUAL": visual})
     async with app.run_test(size=(120, 40)) as pilot:
         await loaded(app, pilot)
+        await first_note(app, pilot)
         await pilot.press("e")
         await wait_until(lambda: marker.exists())
         assert marker.read_text() == "visual"
@@ -43,6 +45,7 @@ async def test_unchanged_edit_writes_nothing(make_app, client, tmp_path):
     before = await client.cat("NOTE-PLANNING")
     async with app.run_test(size=(120, 40)) as pilot:
         await loaded(app, pilot)
+        await first_note(app, pilot)
         await pilot.press("e")
         await pilot.pause(0.5)
     after = await client.cat("NOTE-PLANNING")
@@ -62,6 +65,7 @@ async def test_conflict_keeps_the_temp_file(make_app, client, tmp_path):
     app = make_app(environ={"EDITOR": editor})
     async with app.run_test(size=(120, 40)) as pilot:
         await loaded(app, pilot)
+        await first_note(app, pilot)
         await pilot.press("e")
         await pilot.pause(1.0)
         kept = [p for p in Path(__import__("tempfile").gettempdir()).glob("bjorn-*/Sprint Planning.md")]
@@ -78,6 +82,7 @@ async def test_missing_editor_is_reported_not_fatal(make_app):
     app = make_app(environ={"EDITOR": "no-such-editor-xyz"})
     async with app.run_test(size=(120, 40)) as pilot:
         await loaded(app, pilot)
+        await first_note(app, pilot)
         await pilot.press("e")
         await pilot.pause(0.3)
         assert app.is_running

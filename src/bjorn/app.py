@@ -255,9 +255,15 @@ class BjornApp(App[None]):
             if self._preview_timer is not None:
                 self._preview_timer.stop()
             self._load_gen += 1
-            self.run_worker(functools.partial(self._clear_view, "No note selected"), group="note-load")
+            self.run_worker(functools.partial(self._show_empty, len(self.note_list.notes)), group="note-load")
             return
         self._schedule_preview(event.note)
+
+    async def _show_empty(self, count: int) -> None:
+        gen = self._load_gen
+        async with self._render_lock:
+            if gen == self._load_gen and self.is_running:
+                await self.note_view.show_empty(count)
 
     async def _clear_view(self, message: str) -> None:
         gen = self._load_gen

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from helpers import loaded, titles, wait_until
+from helpers import first_note, loaded, titles, wait_until
 
 
 async def test_p_toggles_global_pin_and_resorts(make_app, client):
@@ -12,6 +12,7 @@ async def test_p_toggles_global_pin_and_resorts(make_app, client):
     async with app.run_test(size=(120, 40)) as pilot:
         await loaded(app, pilot)
         assert titles(app)[0] == "Sprint Planning"
+        await first_note(app, pilot)
         await pilot.press("p")
         await wait_until(lambda: titles(app)[0] == "Garden Plan")
         assert not (await client.snapshot()).by_id("NOTE-PLANNING").pins
@@ -25,6 +26,7 @@ async def test_b_opens_the_note_in_bear(make_app, fake_state):
     app = make_app()
     async with app.run_test(size=(120, 40)) as pilot:
         await loaded(app, pilot)
+        await first_note(app, pilot)
         await pilot.press("b")
         log = fake_state.parent / "bear.json.opened"
         await wait_until(lambda: log.exists())

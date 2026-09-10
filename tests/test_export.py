@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from bjorn.export import default_export_path, safe_filename, unique_path
-from helpers import loaded, wait_until
+from helpers import first_note, loaded, wait_until
 
 
 def test_safe_filename_and_unique_path(tmp_path):
@@ -23,6 +23,7 @@ async def test_x_exports_to_the_prefilled_path(make_app, config):
     app = make_app()
     async with app.run_test(size=(120, 40)) as pilot:
         await loaded(app, pilot)
+        await first_note(app, pilot)
         await pilot.press("x")
         await pilot.pause()
         assert type(app.screen).__name__ == "TextPrompt"
@@ -39,6 +40,7 @@ async def test_export_can_be_cancelled(make_app, config):
     app = make_app()
     async with app.run_test(size=(120, 40)) as pilot:
         await loaded(app, pilot)
+        await first_note(app, pilot)
         await pilot.press("x")
         await pilot.pause()
         await pilot.press("escape")

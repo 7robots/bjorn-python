@@ -5,7 +5,9 @@
 A terminal front end for [Bear](https://bear.app), built with Python and
 [Textual](https://textual.textualize.io). Three columns, like the app: smart
 views and a nested tag tree on the left, the notes list in the middle, the
-rendered note on the right. Everything goes through `bearcli`, the command
+rendered note on the right. Picking a view or a tag shows the list and, as in
+Bear, an empty page with the note count until you step onto a note. Everything
+goes through `bearcli`, the command
 line tool that ships inside Bear.app, so Bjorn works with Bear open or closed
 and never touches the database directly.
 
@@ -44,11 +46,11 @@ bjorn --demo          # sample notes through a built-in fake bearcli, no Bear ne
 | `r` | refresh now | `?` `q` | help, quit |
 
 The **workspace** is a tag subtree that scopes the whole app: the tag tree
-shows only it, the smart views count only inside it, search results are
+shows only it, the smart views cover only it, search results are
 filtered to it, and new notes default to it.
 
-Views are computed from one `bearcli list` snapshot, so the counts in the
-sidebar and the notes list always agree. **Pinned** means any pin, global or
+Views are computed from one `bearcli list` snapshot, so the list and the
+count on the empty page always agree. **Pinned** means any pin, global or
 inside a tag. **Today** means modified today, local time.
 
 ## Todo triage
