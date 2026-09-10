@@ -5,6 +5,8 @@ from __future__ import annotations
 from textual.app import ComposeResult
 from textual import events
 from textual.content import Content
+from pathlib import Path
+
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.message import Message
 from textual.widgets import Markdown, Static
@@ -26,13 +28,17 @@ EMPTY_ART_LINES = [
 STAR_CHARS = "✦·"
 
 
+def count_text(count: int) -> str:
+    return f"{count} notes" if count != 1 else "1 note"
+
+
 def empty_page(count: int) -> Content:
     """The art with the stars in the accent colour, the bear in the widget's
     own (muted) colour, and the count underneath."""
     lines = []
     for line in EMPTY_ART_LINES:
         lines.append("".join(f"[$accent]{ch}[/$accent]" if ch in STAR_CHARS else ch for ch in line))
-    lines += ["", f"{count} notes" if count != 1 else "1 note"]
+    lines += ["", count_text(count)]
     return Content.from_markup("\n".join(lines))
 
 
@@ -101,11 +107,34 @@ class NoteView(Vertical):
     NoteView > #note-empty {
         display: none;
         height: 1fr;
+        align: center middle;
+    }
+    NoteView.empty > #note-empty {
+        display: block;
+    }
+    NoteView #note-art {
+        width: 1fr;
+        height: 1fr;
         content-align: center middle;
         text-align: center;
         color: $text-muted;
     }
-    NoteView.empty > #note-empty {
+    NoteView #note-picture {
+        width: 100%;
+        height: 1fr;
+        margin: 1 2 0 2;
+    }
+    NoteView #note-count {
+        display: none;
+        height: 2;
+        padding: 1 0 0 0;
+        text-align: center;
+        color: $text-muted;
+    }
+    NoteView.picture #note-art {
+        display: none;
+    }
+    NoteView.picture #note-count {
         display: block;
     }
     NoteView.empty > #note-scroll, NoteView.empty > #note-meta {
@@ -118,6 +147,9 @@ class NoteView(Vertical):
         self._note: Note | None = None
         self._full_text: str | None = None
         self._rendered_full = True
+        self._picture: Path | None = None
+        self._picture_widget: type | None = None
+        self._count = 0
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="note-bar"):
@@ -125,7 +157,9 @@ class NoteView(Vertical):
             yield Static("", id="note-header")
         with VerticalScroll(id="note-scroll"):
             yield Markdown("", id="note-markdown", open_links=False)
-        yield Static("", id="note-empty")
+        with Vertical(id="note-empty"):
+            yield Static("", id="note-art")
+            yield Static("", id="note-count")
         yield Static("", id="note-meta")
 
     @property
@@ -148,7 +182,7 @@ class NoteView(Vertical):
         self._note = None
         self._full_text = None
         self._rendered_full = True
-        self.remove_class("empty")
+        self.remove_class("empty", "picture")
         self.query_one("#note-header", Static).update("")
         self.query_one("#note-meta", Static).update("")
         await self.markdown.update(f"*{message}*" if message else "")
@@ -160,17 +194,45 @@ class NoteView(Vertical):
         self._rendered_full = True
         self.query_one("#note-header", Static).update("")
         self.query_one("#note-meta", Static).update("")
-        self.query_one("#note-empty", Static).update(empty_page(count))
+        self._count = count
+        if self._picture is not None and self._picture_widget is not None:
+            await self._ensure_picture()
+            self.query_one("#note-count", Static).update(count_text(count))
+            self.add_class("picture")
+        else:
+            self.remove_class("picture")
+            self.query_one("#note-art", Static).update(empty_page(count))
         self.add_class("empty")
         await self.markdown.update("")
+
+    async def set_picture(self, path: Path | None, widget_class: type | None) -> None:
+        """Use a bitmap for the empty page (or None for the ASCII bear); redraws
+        the page if it is showing."""
+        self._picture = path
+        self._picture_widget = widget_class
+        for old in self.query("#note-picture"):
+            await old.remove()
+        if self.empty:
+            await self.show_empty(self._count)
+
+    async def _ensure_picture(self) -> None:
+        if self.query("#note-picture"):
+            return
+        assert self._picture is not None and self._picture_widget is not None
+        picture = self._picture_widget(str(self._picture), id="note-picture")
+        await self.query_one("#note-empty", Vertical).mount(picture, before=self.query_one("#note-count", Static))
 
     @property
     def empty(self) -> bool:
         return self.has_class("empty")
 
+    @property
+    def has_picture(self) -> bool:
+        return self.has_class("picture")
+
     async def show(self, note: Note, content: str, *, max_lines: int | None = None) -> bool:
         """Render a note. Returns True when only the head was rendered."""
-        self.remove_class("empty")
+        self.remove_class("empty", "picture")
         self._note = note
         text = preprocess(content)
         self._full_text = text
@@ -192,7 +254,7 @@ class NoteView(Vertical):
         await self.markdown.update(self._full_text)
 
     async def show_error(self, note: Note, message: str) -> None:
-        self.remove_class("empty")
+        self.remove_class("empty", "picture")
         self._note = note
         self._full_text = None
         self._rendered_full = True

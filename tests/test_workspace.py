@@ -21,9 +21,9 @@ async def test_w_scopes_and_W_clears(make_app):
         assert roots == ["home"]
         # the empty page counts within the workspace
         await pilot.press("1")
-        await wait_until(lambda: str(app.note_view.query_one("#note-empty").render()).rstrip().endswith("2 notes"))
+        await wait_until(lambda: str(app.note_view.query_one("#note-art").render()).rstrip().endswith("2 notes"))
         await pilot.press("2")
-        await wait_until(lambda: str(app.note_view.query_one("#note-empty").render()).rstrip().endswith("0 notes"))
+        await wait_until(lambda: str(app.note_view.query_one("#note-art").render()).rstrip().endswith("0 notes"))
         await pilot.press("3")
         await wait_until(lambda: titles(app) == ["Garden Plan"])
         await pilot.press("W")

@@ -9,6 +9,7 @@ license-files = ["LICENSE"]
 authors = [{ name = "Jefferson Burson" }]
 dependencies = [
     "textual>=8.2.8",
+    "textual-image[textual]>=0.13.2",
 ]
 
 [project.scripts]

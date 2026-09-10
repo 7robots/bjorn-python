@@ -28,6 +28,7 @@ from .reminders import RemctlClient, RemctlError, join as join_reminders, remctl
 from .render import AUTO_COMPLETE_LINES, BROWSE_LINES
 from .screen import BjornScreen
 from .todos import scan_rows
+from . import wallpaper
 from .widgets.modals import ConfirmScreen, HelpScreen, NewNotePrompt, TextPrompt
 from .widgets.note_list import NoteList
 from .widgets.note_view import ColumnsToggle, NoteView
@@ -134,6 +135,26 @@ class BjornApp(App[None]):
     def note_view(self) -> NoteView:
         return self.query_one("#note-view", NoteView)
 
+    # -- empty page picture -------------------------------------------------------
+
+    async def _load_wallpaper(self) -> None:
+        """Give the empty page its picture where the terminal can draw one: the
+        configured file, else the cached wallpaper, fetched once from Shiny Frog."""
+        widget_class = wallpaper.image_widget()
+        if widget_class is None:
+            return
+        path = wallpaper.resolve_image(self.config.empty_image, self.environ)
+        if path is None and self.config.wallpaper and not self.config.empty_image:
+            try:
+                path = await asyncio.to_thread(wallpaper.fetch_wallpaper, wallpaper.cache_path(self.environ))
+            except OSError as exc:
+                self.notify(f"Could not fetch the wallpaper: {exc}", title="Empty page", severity="warning", timeout=6)
+                return
+            self.notify(wallpaper.CREDIT, title="Empty page", timeout=6)
+        if path is not None and self.is_running:
+            async with self._render_lock:
+                await self.note_view.set_picture(path, widget_class)
+
     # -- columns -----------------------------------------------------------------
 
     #: How many columns are showing: 3 = tags · notes · note, 2 = notes · note, 1 = note.
@@ -162,6 +183,7 @@ class BjornApp(App[None]):
         self.sidebar.set_workspace(self.selection.workspace)
         self.note_list.list_view.focus()
         self.run_worker(self.reload, name="reload", group="reload")
+        self.run_worker(self._load_wallpaper, name="wallpaper", group="wallpaper")
         if self.config.poll_seconds > 0:
             self._poll_timer = self.set_interval(self.config.poll_seconds, self._poll)
 
@@ -823,6 +845,7 @@ def run(*, tag: str | None = None, config_path: str | None = None, demo: bool = 
         client = BearClient([sys.executable, str(Path(__file__).with_name("fake_bearcli.py"))])
         config.reminders.enabled = True
         remctl = RemctlClient([sys.executable, str(Path(__file__).with_name("fake_remctl.py"))])
+    wallpaper.probe()  # asks the terminal about graphics; must precede Textual
     app = BjornApp(config, client=client, remctl=remctl, workspace=tag)
     if not config.mouse_pixels and sys.platform != "win32":
         app.driver_class = cell_mouse_driver_class()

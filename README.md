@@ -84,6 +84,8 @@ workspace = "work"            # start scoped to this tag
 bearcli = "/usr/local/bin/bearcli"  # optional; default searches PATH, then Bear.app
 icon_style = "auto"           # auto | nerd | emoji | lucide | none
 mouse_pixels = true           # set false in Tecolot / SwiftTerm terminals (see below)
+wallpaper = true              # fetch Shiny Frog's Astro-Bear for the empty page (see below)
+empty_image = ""              # or a picture of your own for the empty page
 
 [icons]                       # top-level tag -> Lucide icon name, or emoji:<glyph>
 tech = "terminal"
@@ -101,6 +103,17 @@ emoji otherwise. Built-in defaults cover common top-level tags (`work`, `home`,
 `projects`, `ideas`, `journal`, `books`, `tech`, `garden`, `travel`, `health`,
 `music`, `robotics`, `school`); anything else gets a tag glyph. Names are Lucide's (`bot`, `book-open`, `compass`, ...); see
 `src/bjorn/icons.py` for the table.
+
+### The empty page
+
+Before a note is chosen the reader shows an empty page with the selection's
+note count, as Bear does. In a terminal that can draw bitmaps (the Kitty
+graphics protocol in Ghostty, kitty and WezTerm, or Sixel) the page carries
+[Shiny Frog's Astro-Bear wallpaper](https://bear.app/wallpapers/2/). Bjorn does
+not ship the picture: on first launch it downloads it from Shiny Frog's own
+link into `~/.cache/bjorn/astro-bear.png` and keeps it there. `wallpaper =
+false` skips the download, `empty_image` points at any picture instead, and
+terminals without graphics (Tecolot, Terminal.app) get an ASCII bear.
 
 ### Lucide icons directly
 

@@ -11,7 +11,7 @@ from helpers import loaded, titles, wait_until
 
 
 def empty_page_text(app) -> str:
-    return str(app.note_view.query_one("#note-empty").render())
+    return str(app.note_view.query_one("#note-art").render())
 
 
 async def test_three_columns_load_with_the_empty_page_then_j_renders_the_first_note(make_app):
