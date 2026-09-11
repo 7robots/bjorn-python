@@ -67,7 +67,7 @@ Intent: `src/bjorn/search.py` with `terms` and `pattern`, pure functions.
 Verify: `uv run pytest tests/test_search_terms.py -q` covering words, phrases,
 every operator family dropped, negations dropped, `@title foo` -> `foo`,
 operators-only -> `[]`, regex escaping, case-insensitivity, longest-first.
-Status: [ ]
+Status: [x] done 2026-09-11 (10 passed)
 
 ### Phase 16 — Reader highlighting and jump
 Intent: `NoteView.highlight`, `]` `[` bindings, `enter` to first match,
