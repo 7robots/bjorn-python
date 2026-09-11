@@ -84,8 +84,8 @@ workspace = "work"            # start scoped to this tag
 bearcli = "/usr/local/bin/bearcli"  # optional; default searches PATH, then Bear.app
 icon_style = "auto"           # auto | nerd | emoji | lucide | none
 mouse_pixels = true           # set false in Tecolot / SwiftTerm terminals (see below)
-wallpaper = true              # fetch Shiny Frog's Astro-Bear for the empty page (see below)
-empty_image = ""              # or a picture of your own for the empty page
+wallpaper = true              # a picture on the empty page where the terminal can draw one
+empty_image = ""              # your own picture instead of the bundled Astro-Bear
 empty_image_style = "outline" # outline (Bear-like line art) | colour
 
 [icons]                       # top-level tag -> Lucide icon name, or emoji:<glyph>
@@ -109,15 +109,13 @@ emoji otherwise. Built-in defaults cover common top-level tags (`work`, `home`,
 
 Before a note is chosen the reader shows an empty page with the selection's
 note count, as Bear does. In Ghostty, kitty, WezTerm or iTerm2 the page carries
-[Shiny Frog's Astro-Bear wallpaper](https://bear.app/wallpapers/2/), reduced to
-line art in one muted ink like Bear's own empty page (`empty_image_style =
-"colour"` shows the original). Bjorn does not ship the picture: on first
-launch it downloads it from Shiny Frog's own link into
-`~/.cache/bjorn/astro-bear.png` and keeps the outline next to it. `wallpaper =
-false` skips the download and `empty_image` points at any picture instead.
-Other terminals get an ASCII bear; SwiftTerm-based ones (Tecolot) answer the
-graphics query but draw the image cells as text and shift the columns, so they
-are deliberately left out.
+a line-art Astro-Bear drifting among stars. Its background is keyed out so the
+drawing sits on the terminal's own colours in any theme; `empty_image_style =
+"colour"` shows the file untouched. `empty_image` points at a picture of your
+own (dark line art on a plain ground keys out best) and `wallpaper = false`
+keeps the ASCII bear everywhere. Other terminals get the ASCII bear regardless;
+SwiftTerm-based ones (Tecolot) answer the graphics query but draw the image
+cells as text and shift the columns, so they are deliberately left out.
 
 ### Lucide icons directly
 

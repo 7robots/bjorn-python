@@ -9,8 +9,8 @@ Every key is optional. Example:
     bearcli = "/usr/local/bin/bearcli"   # optional; default searches PATH, then Bear.app
     icon_style = "auto"          # auto | nerd | emoji | lucide | none
     mouse_pixels = true          # false works around SwiftTerm-based terminals (Tecolot)
-    wallpaper = true             # fetch Shiny Frog's Astro-Bear for the empty page (Ghostty, kitty)
-    empty_image = ""             # or a picture of your own for the empty page
+    wallpaper = true             # a picture on the empty page where the terminal can draw one
+    empty_image = ""             # your own picture instead of the bundled Astro-Bear
     empty_image_style = "outline"  # outline (Bear-like line art) | colour
 
     [icons]                      # top-level tag -> Lucide icon name or emoji:<glyph>
@@ -68,9 +68,9 @@ class Config:
     #: in-band resize. Off for terminals that report pixel geometry and mouse
     #: position in different units (SwiftTerm/Tecolot, 2026-09).
     mouse_pixels: bool = True
-    #: Picture for the empty page in terminals that can draw one. Empty means
-    #: Shiny Frog's Astro-Bear wallpaper, fetched once into the cache when
-    #: `wallpaper` is true; a path here is used instead and never fetched.
+    #: Picture for the empty page in terminals that can draw one: the bundled
+    #: Astro-Bear line art unless `empty_image` names a file; `wallpaper = false`
+    #: keeps the ASCII bear everywhere.
     empty_image: str = ""
     wallpaper: bool = True
     #: "outline" reduces the picture to Bear-like line art; "colour" shows it as is.

@@ -139,18 +139,11 @@ class BjornApp(App[None]):
 
     async def _load_wallpaper(self) -> None:
         """Give the empty page its picture where the terminal can draw one: the
-        configured file, else the cached wallpaper, fetched once from Shiny Frog."""
+        configured file, else the bundled Astro-Bear, as line art or as is."""
         widget_class = wallpaper.image_widget()
-        if widget_class is None:
+        if widget_class is None or not self.config.wallpaper:
             return
-        path = wallpaper.resolve_image(self.config.empty_image, self.environ)
-        if path is None and self.config.wallpaper and not self.config.empty_image:
-            try:
-                path = await asyncio.to_thread(wallpaper.fetch_wallpaper, wallpaper.cache_path(self.environ))
-            except OSError as exc:
-                self.notify(f"Could not fetch the wallpaper: {exc}", title="Empty page", severity="warning", timeout=6)
-                return
-            self.notify(wallpaper.CREDIT, title="Empty page", timeout=6)
+        path = wallpaper.resolve_image(self.config.empty_image)
         if path is None:
             return
         try:
