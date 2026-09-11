@@ -169,6 +169,7 @@ class BjornApp(App[None]):
             (self.note_list.list_view if count >= 2 else self.note_view.scroll_view).focus()
 
     def on_mount(self) -> None:
+        self.note_list.tag_source = self.query_tags
         self.sidebar.set_workspace(self.selection.workspace)
         self.note_list.list_view.focus()
         self.run_worker(self.reload, name="reload", group="reload")
@@ -416,6 +417,16 @@ class BjornApp(App[None]):
 
     def current_note(self) -> Note | None:
         return self.note_list.current()
+
+    def query_tags(self) -> list[str]:
+        """Tags for search-box completion: the workspace's subtree first, then
+        the rest, each group sorted."""
+        tags = sorted({tag for note in self.snapshot.notes for tag in note.tags})
+        ws = self.selection.workspace
+        if not ws:
+            return tags
+        inside = [t for t in tags if t == ws or t.startswith(ws + "/")]
+        return inside + [t for t in tags if t not in inside]
 
     # -- actions: navigation -----------------------------------------------------------
 

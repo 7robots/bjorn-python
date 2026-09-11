@@ -81,3 +81,64 @@ async def test_suggester_reads_tags_on_each_call():
     tags[:] = ["health"]
     assert await s.get_suggestion("#h") == "#health"
     assert await s.get_suggestion("Bulbs #H") == "Bulbs #health"
+
+
+# -- Phase 20: through the box --------------------------------------------------------
+
+from helpers import loaded, titles, wait_until  # noqa: E402
+
+
+async def type_text(pilot, text: str) -> None:
+    for ch in text:
+        await pilot.press({"@": "at", "#": "number_sign", " ": "space"}.get(ch, ch))
+
+
+async def test_at_completes_and_right_accepts_and_enter_runs(make_app):
+    app = make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        await loaded(app, pilot)
+        await pilot.press("slash")
+        await pilot.pause()
+        assert app.note_list.hint_visible
+        await type_text(pilot, "@to")
+        await wait_until(lambda: app.note_list.search_input._suggestion == "@todo")
+        await pilot.press("right")
+        await pilot.pause()
+        assert app.note_list.search_input.value == "@todo"
+        await pilot.press("enter")
+        await wait_until(lambda: app.search_query == "@todo")
+        await wait_until(lambda: set(titles(app)) == {"Sprint Planning", "Garden Plan"})
+
+
+async def test_hash_completes_from_the_snapshot(make_app):
+    app = make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        await loaded(app, pilot)
+        await pilot.press("slash")
+        await type_text(pilot, "bulbs #ho")
+        await wait_until(lambda: app.note_list.search_input._suggestion == "bulbs #home")
+        await type_text(pilot, "me/")
+        await wait_until(lambda: app.note_list.search_input._suggestion == "bulbs #home/garden")
+        await pilot.press("escape")
+
+
+async def test_workspace_tags_come_first(make_app):
+    app = make_app(workspace="home")
+    async with app.run_test(size=(120, 40)) as pilot:
+        await loaded(app, pilot)
+        assert app.query_tags()[0] == "home"
+        assert app.query_tags()[-1].startswith("work")
+
+
+async def test_hint_hides_with_the_box(make_app):
+    app = make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        await loaded(app, pilot)
+        assert not app.note_list.hint_visible
+        await pilot.press("slash")
+        await pilot.pause()
+        assert app.note_list.hint_visible
+        await pilot.press("escape")
+        await pilot.pause()
+        assert not app.note_list.hint_visible
+        assert not app.note_list.search_open

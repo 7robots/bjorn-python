@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable, Sequence
 
 from datetime import datetime, timezone
 
@@ -13,6 +14,7 @@ from textual.message import Message
 from textual.widgets import Input, ListItem, ListView, Static
 
 from ..search import MATCH_STYLE
+from ..search_box import HINT, QuerySuggester
 from ..bear import Note
 
 
@@ -145,6 +147,15 @@ class NoteList(Vertical):
     NoteList > #search.visible {
         display: block;
     }
+    NoteList > #search-hint {
+        display: none;
+        height: 1;
+        padding: 0 1;
+        color: $text-muted;
+    }
+    NoteList > #search-hint.visible {
+        display: block;
+    }
     NoteList > #notes {
         height: 1fr;
         border: none;
@@ -195,10 +206,17 @@ class NoteList(Vertical):
         self._notes: list[Note] = []
         self._mounted = 0
         self._pattern: re.Pattern[str] | None = None
+        #: Tags the search box completes from, priority order; the app sets it.
+        self.tag_source: Callable[[], Sequence[str]] = lambda: []
 
     def compose(self) -> ComposeResult:
         yield Static("NOTES", id="notes-header")
-        yield Input(placeholder="Search (Bear syntax) — enter to run, esc to clear", id="search")
+        yield Input(
+            placeholder="Search (Bear syntax) — enter to run, esc to clear",
+            id="search",
+            suggester=QuerySuggester(lambda: self.tag_source()),
+        )
+        yield Static(HINT, id="search-hint", markup=False)
         yield NotesListView(id="notes")
         yield Static("No notes", id="empty")
 
@@ -289,14 +307,20 @@ class NoteList(Vertical):
     def open_search(self, prefill: str = "") -> None:
         box = self.search_input
         box.add_class("visible")
+        self.query_one("#search-hint").add_class("visible")
         box.value = prefill
         box.focus()
 
     def close_search(self) -> None:
         box = self.search_input
         box.remove_class("visible")
+        self.query_one("#search-hint").remove_class("visible")
         box.value = ""
         self.list_view.focus()
+
+    @property
+    def hint_visible(self) -> bool:
+        return self.query_one("#search-hint").has_class("visible")
 
     @property
     def search_open(self) -> bool:

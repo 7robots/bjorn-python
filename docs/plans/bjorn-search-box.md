@@ -66,7 +66,7 @@ Verify: `uv run pytest tests/test_search_box.py -q` (extended, through the fake
 bearcli): typing `@to` shows ghost text `do`, `→` accepts and `enter` runs
 `@todo` (list narrows to the todo notes), `#ho` completes to a snapshot tag,
 the hint row is visible only while the box is, `esc` hides both.
-Status: [ ]
+Status: [x] done 2026-09-11 (16 passed with test_search_box.py; full suite 162)
 
 ### Phase 21 — Acceptance gate
 Intent: end-to-end against live Bear, run once, headless through the app.

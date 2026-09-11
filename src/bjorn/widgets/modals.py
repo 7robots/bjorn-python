@@ -252,7 +252,7 @@ Three columns: smart views and tags · notes · the rendered note.
 | `j` `k` / `↑` `↓` | move within a pane |
 | `enter` | open the highlighted note in the reader, at the first match while searching |
 | `1`–`7` | Notes, Untagged, Todo, Today, Pinned, Archive, Trash |
-| `/` | search with Bear syntax (`@todo`, `#tag`, `"phrase"`, `-term`) |
+| `/` | search with Bear syntax (`@todo`, `#tag`, `"phrase"`, `-term`); `@` and `#` complete as you type, `→` accepts |
 | `esc` | clear the search and its highlights |
 | `]` / `[` | next / previous match in the reader while searching |
 | `n` | new note (title, tags) then edit |

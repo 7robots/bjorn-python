@@ -32,7 +32,7 @@ bjorn --demo          # sample notes through a built-in fake bearcli, no Bear ne
 
 | Key | Action | Key | Action |
 |---|---|---|---|
-| `tab` / `shift+tab` | cycle panes | `/` | search (Bear syntax); `enter` runs it; matches are highlighted in the reader |
+| `tab` / `shift+tab` | cycle panes | `/` | search (Bear syntax); `@` and `#` complete, `→` accepts; `enter` runs it |
 | `j` `k` `↑` `↓` | move within a pane; in the sidebar the cursor runs from the views into the tags; in the reader they scroll | `esc` | clear the search |
 | `enter` | move into the reader for the highlighted note, at the first match while searching (clicking a note highlights it) | `1`–`7` | Notes, Untagged, Todo, Today, Pinned, Archive, Trash |
 | `n` | new note (title, tags), then edit | `d` | move the note to the trash, after a confirm |
@@ -50,7 +50,10 @@ shows only it, the smart views count only inside it, search results are
 filtered to it, and new notes default to it.
 
 Search goes to `bearcli search` unchanged, so Bear's whole syntax works and
-plain terms match body text, not just titles. While a search is active the
+plain terms match body text, not just titles. While you type, `@` completes
+bearcli's operators (`@todo`, `@title`, `@last7days`, `@date(`…) and `#`
+completes your tags, workspace first, as ghost text that `→` accepts; a
+one-line cheat sheet sits under the box. While a search is active the
 reader highlights the terms, the header counts the matching blocks, `]` and `[`
 step through them, and `enter` on a note lands on its first match. Fenced code
 and tables are listed by Bear but not highlighted.
