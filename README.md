@@ -153,3 +153,12 @@ uv run bjorn --demo
 The plan and its status live in `docs/plans/bjorn-tui.md`; deferred work in
 `docs/ROADMAP.md`. `uv run python tools/screenshot.py` regenerates the
 screenshot above from an invented library through the fake bearcli.
+
+## Acknowledgements
+
+Bjorn exists because of [Shiny Frog](https://shinyfrog.net) and
+[Bear](https://bear.app). Bear is the notes app Bjorn is a front end for, and
+`bearcli`, the command line tool Shiny Frog ships inside Bear.app, is what
+makes a terminal client possible at all: every listing, search, read, edit
+and export in Bjorn is a `bearcli` call. Thank you for building it, and for
+building it well.
