@@ -150,3 +150,37 @@ def test_extension_for_switches_rtf_to_a_package_only_with_attachments():
     assert extension_for(format_by_id("rtf"), False) == "rtf"
     assert extension_for(format_by_id("rtf"), True) == "rtfd"
     assert extension_for(format_by_id("html"), True) == "html"
+
+
+async def test_b_exports_a_textbundle_with_assets_and_rewritten_links(make_app, config):
+    import json
+
+    app = make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        await loaded(app, pilot)
+        await pilot.press("j")  # Garden Plan carries the seeded image
+        await wait_until(lambda: app.note_view.note is not None and app.note_view.note.id == "NOTE-GARDEN")
+        bundle = await _export_via_picker(app, pilot, "b")
+        assert bundle == config.export_dir / "Garden Plan.textbundle" and bundle.is_dir()
+        info = json.loads((bundle / "info.json").read_text())
+        assert info["version"] == 2 and info["type"] == "net.daringfireball.markdown" and info["transient"] is False
+        text = (bundle / "text.md").read_text()
+        assert text.startswith("# Garden Plan\n#home/garden\n")
+        assert "![](assets/Front%20bed.png)" in text and "](Front%20bed.png)" not in text
+        assert (bundle / "assets" / "Front bed.png").read_bytes().startswith(b"\x89PNG")
+
+
+def test_rewrite_attachment_links_touches_only_attachments():
+    from bjorn.export import rewrite_attachment_links
+
+    src = "![](Front%20bed.png) [plan](plan.pdf) [REV](https://rev.example) ![x](other.png)"
+    out = rewrite_attachment_links(src, ["Front bed.png", "plan.pdf"])
+    assert out == "![](assets/Front%20bed.png) [plan](assets/plan.pdf) [REV](https://rev.example) ![x](other.png)"
+
+
+def test_textbundle_without_attachments_has_no_assets_folder(tmp_path):
+    from bjorn.export import export_note, format_by_id
+
+    out = export_note(format_by_id("textbundle"), "# T\n\nbody", "T", tmp_path / "T.textbundle", {})
+    assert (out / "text.md").read_text() == "# T\n\nbody\n"
+    assert not (out / "assets").exists()

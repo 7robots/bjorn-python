@@ -7,12 +7,14 @@ bytes and write files. Fetching content and attachments is the app's job.
 
 from __future__ import annotations
 
+import json
 import re
 import shutil
 import subprocess
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import quote, unquote
 
 from . import render_html
 from .render import to_text
@@ -39,7 +41,11 @@ FORMATS: tuple[Format, ...] = (
     Format("html", "HTML", "h", "html", needs_attachments=True),
     Format("txt", "Text", "t", "txt"),
     Format("rtf", "RTF", "r", "rtf", needs_attachments=True),
+    Format("textbundle", "TextBundle", "b", "textbundle", needs_attachments=True),
 )
+#: What a TextBundle's info.json says about us.
+CREATOR_IDENTIFIER = "org.7robots.bjorn"
+_LINK_TARGET_RE = re.compile(r"(!?\[[^\]]*\]\()([^)\s]+)(\))")
 DEFAULT_FORMAT = "md"
 
 
@@ -131,6 +137,42 @@ def export_rtf(content: str, title: str, destination: Path, images: dict[str, by
     return destination
 
 
+def rewrite_attachment_links(content: str, filenames, prefix: str = "assets/") -> str:
+    """Point every markdown link or image whose target is one of `filenames`
+    (compared after percent-decoding, as Bear writes them) at `prefix` +
+    the same encoded name. Other links are left alone."""
+    names = set(filenames)
+
+    def swap(match: re.Match) -> str:
+        target = match.group(2)
+        if unquote(target) in names:
+            return f"{match.group(1)}{prefix}{quote(unquote(target))}{match.group(3)}"
+        return match.group(0)
+
+    return _LINK_TARGET_RE.sub(swap, content)
+
+
+def export_textbundle(content: str, title: str, destination: Path, images: dict[str, bytes] | None = None) -> Path:
+    """A `.textbundle` folder (TextBundle 2.0): `info.json`, the raw Bear
+    markdown as `text.md` with attachment links pointing into `assets/`, and
+    every attachment copied there. Round-trips into Bear, Ulysses, iA Writer."""
+    destination = _prepare(destination)
+    destination.mkdir(exist_ok=True)
+    images = images or {}
+    (destination / "info.json").write_text(
+        json.dumps({"version": 2, "type": "net.daringfireball.markdown", "transient": False, "creatorIdentifier": CREATOR_IDENTIFIER}, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    text = rewrite_attachment_links(content, images)
+    (destination / "text.md").write_text(text if text.endswith("\n") else text + "\n", encoding="utf-8")
+    if images:
+        assets = destination / "assets"
+        assets.mkdir(exist_ok=True)
+        for name, data in images.items():
+            (assets / name).write_bytes(data)
+    return destination
+
+
 def export_note(fmt: Format, content: str, title: str, destination: Path, images: dict[str, bytes] | None = None) -> Path:
     """Write `content` as `fmt` to `destination`; returns what was written."""
     if fmt.id == "md":
@@ -141,4 +183,6 @@ def export_note(fmt: Format, content: str, title: str, destination: Path, images
         return export_html(content, title, destination, images)
     if fmt.id == "rtf":
         return export_rtf(content, title, destination, images)
+    if fmt.id == "textbundle":
+        return export_textbundle(content, title, destination, images)
     raise ValueError(f"unknown export format {fmt.id}")

@@ -88,7 +88,7 @@ whenever the note has attachments; the HTML fed to it carries data: URIs.
 Intent: `.textbundle` folder with `info.json`, `text.md` (links rewritten to
 `assets/`), and every attachment saved into `assets/`.
 Verify: `uv run pytest tests/test_export.py -k textbundle`
-Status: [ ] pending
+Status: [x] done 2026-09-11 (2 passed; full suite 125)
 
 ### Phase 14 — Acceptance gate
 Intent: against the live database, export one note that carries two image

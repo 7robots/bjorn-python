@@ -4,7 +4,7 @@ Every key is optional. Example:
 
     editor = "nvim"
     export_dir = "~/Documents/exports"
-    export_format = "md"         # preselected in the export picker: md | html | txt | rtf
+    export_format = "md"         # preselected in the export picker: md | html | txt | rtf | textbundle
     poll_seconds = 5
     workspace = "work"
     bearcli = "/usr/local/bin/bearcli"   # optional; default searches PATH, then Bear.app
