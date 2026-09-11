@@ -121,8 +121,9 @@ class Sidebar(Vertical):
         padding: 0;
         border: none;
     }
-    Sidebar:focus-within > #sidebar-header {
-        color: $accent;
+    Sidebar.focused > #sidebar-header {
+        background: $accent;
+        color: $text;
     }
     """
 
@@ -294,5 +295,9 @@ class Sidebar(Vertical):
     def on_descendant_focus(self, event) -> None:
         """Moving focus back onto the column re-applies its selection, so the
         notes pane follows the cursor."""
+        self.add_class("focused")
         if not self._suppress and event.widget is self.tree:
             self._announce(self.tree.cursor_node)
+
+    def on_descendant_blur(self, event) -> None:
+        self.remove_class("focused")

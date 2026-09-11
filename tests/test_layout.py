@@ -139,3 +139,23 @@ async def test_tag_counts_sit_flush_right_at_every_depth(make_app):
                 assert text.split()[-1].isdigit(), text
         assert views == 7
         assert rows >= 3 and any(len(l.path) > 1 for l in tree._tree_lines)  # at least one nested tag (paths omit the hidden root)
+
+
+async def test_focused_column_header_is_filled_with_the_accent(make_app):
+    app = make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        await loaded(app, pilot)
+        accent = app.current_theme.to_color_system().generate()["accent"].lower()
+
+        def lit(selector: str) -> bool:
+            return app.query_one(selector).styles.background.hex.lower() == accent
+
+        app.note_list.list_view.focus()
+        await wait_until(lambda: lit("#notes-header"))
+        assert not lit("#sidebar-header") and not lit("#note-bar")
+        app.sidebar.tree.focus()
+        await wait_until(lambda: lit("#sidebar-header"))
+        assert not lit("#notes-header") and not lit("#note-bar")
+        app.note_view.scroll_view.focus()
+        await wait_until(lambda: lit("#note-bar"))
+        assert not lit("#sidebar-header") and not lit("#notes-header")

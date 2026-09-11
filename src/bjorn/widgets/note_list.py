@@ -136,8 +136,9 @@ class NoteList(Vertical):
         color: $success;
         text-style: bold;
     }
-    NoteList:focus-within > #notes-header {
-        color: $accent;
+    NoteList.focused > #notes-header {
+        background: $accent;
+        color: $text;
     }
     NoteList > #search {
         display: none;
@@ -328,6 +329,12 @@ class NoteList(Vertical):
     @property
     def search_open(self) -> bool:
         return self.search_input.has_class("visible")
+
+    def on_descendant_focus(self, event) -> None:
+        self.add_class("focused")
+
+    def on_descendant_blur(self, event) -> None:
+        self.remove_class("focused")
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         if event.input is not self.search_input:

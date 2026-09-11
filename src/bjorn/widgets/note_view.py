@@ -64,8 +64,12 @@ class NoteView(Vertical):
         color: $success;
         text-style: bold;
     }
-    NoteView:focus-within #note-header {
-        color: $accent;
+    NoteView.focused > #note-bar {
+        background: $accent;
+    }
+    NoteView.focused #note-header,
+    NoteView.focused #columns-toggle {
+        color: $text;
     }
     NoteView > #note-scroll {
         height: 1fr;
@@ -271,5 +275,9 @@ class NoteView(Vertical):
         """The pane was focused while truncated: the app should render the rest."""
 
     def on_descendant_focus(self, event) -> None:
+        self.add_class("focused")
         if not self._rendered_full:
             self.post_message(self.WantsFull())
+
+    def on_descendant_blur(self, event) -> None:
+        self.remove_class("focused")
