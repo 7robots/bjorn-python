@@ -74,7 +74,7 @@ Intent: `x` opens the format prompt then the path prompt; `export_format`
 config; `export_note` writes `.html` (self-contained) and `.txt`; help and
 README updated.
 Verify: `uv run pytest tests/test_export.py`
-Status: [ ] pending
+Status: [x] done 2026-09-11 (13 passed with test_config.py; full suite 119)
 
 ### Phase 12 — RTF
 Intent: `.rtf` via `textutil` from a temporary HTML file, `.rtfd` when images

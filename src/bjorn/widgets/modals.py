@@ -1,7 +1,8 @@
-"""Modal screens: confirm, text prompt, new-note prompt, help."""
+"""Modal screens: confirm, text prompt, format picker, new-note prompt, help."""
 
 from __future__ import annotations
 
+from rich.text import Text
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
@@ -115,6 +116,75 @@ class TextPrompt(SafeSelectMixin, ModalScreen[str | None]):
         self.dismiss(None)
 
 
+class FormatPrompt(SafeSelectMixin, ModalScreen[str | None]):
+    """Pick an export format: one key per format, or arrows and enter. None on escape."""
+
+    DEFAULT_CSS = """
+    FormatPrompt {
+        align: center middle;
+    }
+    FormatPrompt > Vertical {
+        width: 70;
+        height: auto;
+        border: thick $accent;
+        background: $surface;
+        padding: 1 2;
+    }
+    FormatPrompt .choices {
+        margin-top: 1;
+    }
+    FormatPrompt .hint {
+        color: $text-muted;
+        margin-top: 1;
+    }
+    """
+    BINDINGS = [
+        Binding("escape", "cancel", "Cancel"),
+        Binding("enter", "choose", "Choose"),
+        Binding("left,h", "move(-1)", "Previous", show=False),
+        Binding("right,l", "move(1)", "Next", show=False),
+    ]
+
+    def __init__(self, formats, selected: str) -> None:
+        super().__init__()
+        self.formats = list(formats)
+        ids = [f.id for f in self.formats]
+        self.index = ids.index(selected) if selected in ids else 0
+
+    def compose(self) -> ComposeResult:
+        with Vertical():
+            yield Label("Export as")
+            yield Static(self._choices(), classes="choices", id="choices")
+            yield Static("letter or ←/→ then enter · esc to cancel", classes="hint")
+
+    def _choices(self) -> Text:
+        text = Text()
+        for i, fmt in enumerate(self.formats):
+            if i:
+                text.append("   ")
+            style = "reverse bold" if i == self.index else ""
+            text.append(f" {fmt.key} ", "bold" if i != self.index else style)
+            text.append(f"{fmt.label} ", style)
+        return text
+
+    def action_move(self, delta: int) -> None:
+        self.index = (self.index + delta) % len(self.formats)
+        self.query_one("#choices", Static).update(self._choices())
+
+    def action_choose(self) -> None:
+        self.dismiss(self.formats[self.index].id)
+
+    def action_cancel(self) -> None:
+        self.dismiss(None)
+
+    def on_key(self, event) -> None:
+        for fmt in self.formats:
+            if event.character == fmt.key:
+                event.stop()
+                self.dismiss(fmt.id)
+                return
+
+
 class NewNotePrompt(SafeSelectMixin, ModalScreen[tuple[str, str] | None]):
     """Title and tags for a new note; None on escape."""
 
@@ -189,7 +259,7 @@ Three columns: smart views and tags · notes · the rendered note.
 | `d` | move the note to the trash |
 | `u` | restore from Trash or Archive |
 | `p` | toggle the global pin |
-| `x` | export the note as Markdown |
+| `x` | export the note: Markdown, HTML or plain text (`export_format` picks the default) |
 | `b` | open the note in Bear.app |
 | `w` | make the highlighted tag the workspace; again to leave it (`W` also clears) |
 | `f` | fold / unfold the highlighted tag's subtree |

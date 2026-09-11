@@ -37,7 +37,7 @@ bjorn --demo          # sample notes through a built-in fake bearcli, no Bear ne
 | `enter` / click | read the highlighted note / highlight it | `1`–`7` | Notes, Untagged, Todo, Today, Pinned, Archive, Trash |
 | `n` | new note (title, tags), then edit | `d` | move the note to the trash |
 | `e` | edit in `$EDITOR` | `u` | restore from Trash or Archive |
-| `p` | toggle the global pin | `x` | export as Markdown |
+| `p` | toggle the global pin | `x` | export: Markdown, HTML, text |
 | `b` | open in Bear.app | `w` | set the workspace; again to leave it |
 | `f` / `F` | fold / unfold a tag subtree / all tags | `W` | clear the workspace |
 | `t` | triage the workspace's open todos | `c` / click `▮▮▮` | hide the tag column, then the note column, then show all |
@@ -77,6 +77,7 @@ key is optional:
 ```toml
 editor = "nvim"               # overrides $VISUAL / $EDITOR
 export_dir = "~/Downloads"    # where `x` proposes to write
+export_format = "md"          # preselected in the export picker: md | html | txt
 poll_seconds = 5              # 0 disables the background refresh
 workspace = "work"            # start scoped to this tag
 bearcli = "/usr/local/bin/bearcli"  # optional; default searches PATH, then Bear.app

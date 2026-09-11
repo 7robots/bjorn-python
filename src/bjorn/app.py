@@ -22,14 +22,14 @@ from textual.widgets import Footer, Input, ListView, Tree
 
 from .bear import BearClient, BearError, Note, NoteContent, Probe, Snapshot, display_tag, normalize_tag, recently_modified, resolve_bearcli
 from .config import Config, editor_available, resolve_editor
-from .export import default_export_path, export_markdown, safe_filename
+from .export import FORMATS, default_export_path, export_note, format_by_id, safe_filename
 from .icons import IconSet
 from .model import Selection, View, duplicate_titles, select_notes
 from .reminders import RemctlClient, RemctlError, join as join_reminders, remctl_found, resolve_remctl
 from .render import AUTO_COMPLETE_LINES, BROWSE_LINES
 from .screen import BjornScreen
 from .todos import scan_rows
-from .widgets.modals import ConfirmScreen, HelpScreen, NewNotePrompt, TextPrompt
+from .widgets.modals import ConfirmScreen, FormatPrompt, HelpScreen, NewNotePrompt, TextPrompt
 from .widgets.note_list import NoteList
 from .widgets.note_view import ColumnsToggle, NoteView
 from .widgets.sidebar import Sidebar
@@ -798,19 +798,32 @@ class BjornApp(App[None]):
         if note.locked:
             self.notify("Locked notes cannot be exported here.", severity="warning")
             return
-        default = default_export_path(self.config.export_dir, note.title, "md")
+        chosen = await self.push_screen_wait(FormatPrompt(FORMATS, self.config.export_format))
+        if not chosen:
+            return
+        fmt = format_by_id(chosen)
+        default = default_export_path(self.config.export_dir, note.title, fmt.ext)
         target = await self.push_screen_wait(
-            TextPrompt("Export as Markdown to", prefill=str(default), hint="enter to write · esc to cancel")
+            TextPrompt(f"Export as {fmt.label} to", prefill=str(default), hint="enter to write · esc to cancel")
         )
         if not target:
             return
         try:
             content = await self._fetch_content(note)
-            written = export_markdown(content.content, Path(target))
-        except (BearError, OSError) as exc:
+            images = await self._attachment_bytes(note) if fmt.needs_attachments else {}
+            written = await asyncio.to_thread(export_note, fmt, content.content, note.title, Path(target), images)
+        except (BearError, OSError, ValueError) as exc:
             self.notify(str(exc), title="Export failed", severity="error", timeout=10)
             return
         self.notify(f"Exported to {written}", timeout=5)
+
+    async def _attachment_bytes(self, note: Note) -> dict[str, bytes]:
+        """Every attachment of `note`, by filename; nothing to fetch when the
+        snapshot says it has none."""
+        if not note.attachments:
+            return {}
+        names = await self.client.attachments(note.id)
+        return {name: await self.client.attachment(note.id, name) for name in names}
 
 
 def cell_mouse_driver_class():

@@ -4,6 +4,7 @@ Every key is optional. Example:
 
     editor = "nvim"
     export_dir = "~/Documents/exports"
+    export_format = "md"         # preselected in the export picker: md | html | txt
     poll_seconds = 5
     workspace = "work"
     bearcli = "/usr/local/bin/bearcli"   # optional; default searches PATH, then Bear.app
@@ -56,6 +57,7 @@ class RemindersConfig:
 class Config:
     editor: str = ""
     export_dir: Path = field(default_factory=lambda: Path.home() / "Downloads")
+    export_format: str = "md"
     poll_seconds: int = DEFAULT_POLL_SECONDS
     workspace: str = ""
     bearcli: str = ""
@@ -80,6 +82,7 @@ class Config:
         export_dir = str(data.get("export_dir", "") or "").strip()
         if export_dir:
             cfg.export_dir = Path(export_dir).expanduser()
+        cfg.export_format = str(data.get("export_format", "md") or "md").strip().lower()
         poll = data.get("poll_seconds", DEFAULT_POLL_SECONDS)
         try:
             cfg.poll_seconds = max(0, int(poll))
