@@ -224,3 +224,12 @@ async def test_a_note_stamped_this_second_is_read_again_every_snapshot():
     await rec.client.snapshot()
     assert sorted(rec.kinds()) == ["cat", "list"]
     assert rec.calls[-1][1] == "N1"
+
+
+async def test_attachments_list_and_save(client):
+    assert await client.attachments("NOTE-GARDEN") == ["Front bed.png"]
+    assert await client.attachments("NOTE-PLANNING") == []
+    data = await client.attachment("NOTE-GARDEN", "Front bed.png")
+    assert data.startswith(b"\x89PNG\r\n\x1a\n") and len(data) == 70
+    with pytest.raises(BearError):
+        await client.attachment("NOTE-GARDEN", "missing.png")

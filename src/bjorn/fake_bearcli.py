@@ -12,6 +12,7 @@ Every `app open` call is appended to `<state>.opened` so tests can assert on it.
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import json
 import os
@@ -22,6 +23,10 @@ from pathlib import Path
 
 META_FIELDS = ("id", "title", "locked", "tags", "length", "created", "modified", "pins", "location", "todos", "done", "attachments")
 DEFAULT_LIST_FIELDS = ("id", "title", "tags", "length")
+
+
+#: A 1x1 transparent PNG, base64: the seeded attachment.
+ONE_PIXEL_PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
 
 
 def state_path() -> Path:
@@ -56,7 +61,10 @@ def seed_state() -> dict:
             "content": (
                 "# Garden Plan\n#home/garden\n\n- [ ] order bulbs for the front bed\n- [x] mulch the roses\n\n"
                 "## Next spring\n- [ ] move the hydrangea\n```\n- [ ] this is inside a code block\n```\n"
+                "\n![](Front%20bed.png)\n"
             ),
+            "attachments": ["Front bed.png"],
+            "attachment_data": {"Front bed.png": ONE_PIXEL_PNG},
         },
         {
             "id": "NOTE-READING", "title": "Reading Queue", "tags": ["home"],
@@ -493,6 +501,27 @@ def cmd_pin(args, state):
     save_state(state)
 
 
+def cmd_attachments(args, state):
+    note = find_note(state, args.note_id, args.title)
+    if note is None:
+        fail(getattr(args, "format", "tsv"), "not_found", "Note not found")
+    if args.att_cmd in (None, "list"):
+        rows = [{"filename": name, "size": len(base64.b64decode((note.get("attachment_data") or {}).get(name, "")))} for name in note.get("attachments") or []]
+        fields = parse_fields(args.fields, ("filename", "size"))
+        emit_rows([{f: r[f] for f in fields if f in r} for r in rows], fields, args.format)
+        return
+    if args.att_cmd == "save":
+        if sys.stdout.isatty():
+            fail_text("Refusing to write binary data to a terminal; redirect stdout.")
+        data = (note.get("attachment_data") or {}).get(args.filename)
+        if data is None or args.filename not in (note.get("attachments") or []):
+            fail_text("Attachment not found")
+        sys.stdout.buffer.write(base64.b64decode(data))
+        sys.stdout.flush()
+        return
+    fail_text("unsupported attachments subcommand", 64)
+
+
 def cmd_app(args, state):
     if args.app_cmd == "open":
         note = find_note(state, args.note_id, args.title)
@@ -544,6 +573,10 @@ def build_parser() -> argparse.ArgumentParser:
     for name in ("list", "add", "remove"):
         q = ps.add_parser(name); q.add_argument("note_id", nargs="?"); q.add_argument("targets", nargs="*"); add_format(q)
     add_format(p); p.set_defaults(func=cmd_pin, note_id=None, targets=[])
+    p = sub.add_parser("attachments"); ats = p.add_subparsers(dest="att_cmd")
+    q = ats.add_parser("list"); q.add_argument("note_id", nargs="?"); q.add_argument("-t", "--title"); add_format(q)
+    q = ats.add_parser("save"); q.add_argument("note_id", nargs="?"); q.add_argument("-t", "--title"); q.add_argument("-f", "--filename", required=True)
+    add_format(p); p.set_defaults(func=cmd_attachments, note_id=None, title=None, filename=None)
     p = sub.add_parser("app"); aps = p.add_subparsers(dest="app_cmd")
     q = aps.add_parser("open"); q.add_argument("note_id", nargs="?"); q.add_argument("-t", "--title"); q.add_argument("--header"); q.add_argument("--edit", action="store_true"); q.add_argument("--new-window", action="store_true")
     p.set_defaults(func=cmd_app)

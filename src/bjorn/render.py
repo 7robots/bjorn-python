@@ -88,7 +88,51 @@ def strip_title_and_tags(content: str) -> str:
     return "\n".join(lines[i:])
 
 
-_MARKUP_RE = re.compile(r"\*|__|==|`|~~|\[([ xX])\]|^\s*(?:[-*+]|\d+[.)])\s+|^#{1,6}\s+|^>\s*", re.MULTILINE)
+#: Inline markers with no place in plain text: emphasis, highlight, code
+#: ticks, strikethrough, underline. Links are handled separately.
+_INLINE_MARKUP_RE = re.compile(r"\*|__|==|`|~~|(?<![~\w])~(?=\S)|(?<=\S)~(?![~\w])")
+_BLOCK_MARKUP_RE = re.compile(r"\[([ xX])\]|^\s*(?:[-*+]|\d+[.)])\s+|^#{1,6}\s+|^>\s*", re.MULTILINE)
+_IMAGE_RE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+)\)")
+_LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)\s]+)\)")
+_HEADING_MARK_RE = re.compile(r"^(#{1,6})\s+")
+_QUOTE_RE = re.compile(r"^(\s*)>\s?")
+
+
+def strip_inline_markup(line: str) -> str:
+    """Emphasis, highlight, code, strike and underline markers removed; links
+    kept as `text <url>`, images as `[image: file]`."""
+    line = _IMAGE_RE.sub(lambda m: f"[image: {_unquote(m.group(2))}]", line)
+    line = _LINK_RE.sub(lambda m: m.group(1) if m.group(2) == m.group(1) else f"{m.group(1)} <{m.group(2)}>", line)
+    return _INLINE_MARKUP_RE.sub("", line)
+
+
+def _unquote(name: str) -> str:
+    from urllib.parse import unquote
+
+    return unquote(name)
+
+
+def to_text(content: str) -> str:
+    """The note as plain text: headings without their `#`s, task boxes as
+    glyphs, `- ` bullets kept, quotes unmarked, inline markers gone, fenced
+    code and tables as written, the tag line kept."""
+    out: list[str] = []
+    in_fence = False
+    for line in content.splitlines():
+        if _FENCE_RE.match(line):
+            in_fence = not in_fence
+            continue
+        if in_fence or is_tag_line(line) or line.lstrip().startswith("|"):
+            out.append(line)
+            continue
+        line = _HEADING_MARK_RE.sub("", line)
+        line = _QUOTE_RE.sub(r"\1", line)
+        line = _TASK_OPEN_RE.sub(lambda m: f"{m.group(1)}{OPEN_BOX}{m.group(2) or ' '}", line)
+        line = _TASK_DONE_RE.sub(lambda m: f"{m.group(1)}{DONE_BOX}{m.group(2) or ' '}", line)
+        line = re.sub(r"^(\s*)[*+](\s+)", r"\1-\2", line)
+        out.append(strip_inline_markup(line).rstrip())
+    text = "\n".join(out).strip("\n") + "\n"
+    return text
 
 
 def preview(content: str, limit: int = 240) -> str:
@@ -99,7 +143,7 @@ def preview(content: str, limit: int = 240) -> str:
     for line in strip_title_and_tags(content).splitlines():
         if _FENCE_RE.match(line):
             continue
-        text = " ".join(_MARKUP_RE.sub("", line).split())
+        text = " ".join(strip_inline_markup(_BLOCK_MARKUP_RE.sub("", line)).split())
         if not text:
             continue
         words.append(text)

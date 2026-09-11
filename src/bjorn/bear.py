@@ -248,7 +248,8 @@ class BearClient:
         #: fetches bodies just for the notes whose stamp moved.
         self._previews: dict[str, tuple[str, str]] = {}
 
-    async def _run(self, *args: str, parse: bool = True, stdin: str | None = None) -> Any:
+    async def _spawn(self, *args: str, stdin: str | None = None) -> tuple[int, bytes, str]:
+        """Run bearcli once: (exit code, raw stdout, decoded stderr)."""
         try:
             proc = await asyncio.create_subprocess_exec(
                 *self.command,
@@ -270,7 +271,11 @@ class BearClient:
             with contextlib.suppress(Exception):
                 await proc.wait()
             raise
-        stdout, stderr = stdout_b.decode(), stderr_b.decode()
+        return proc.returncode or 0, stdout_b, stderr_b.decode()
+
+    async def _run(self, *args: str, parse: bool = True, stdin: str | None = None) -> Any:
+        returncode, stdout_b, stderr = await self._spawn(*args, stdin=stdin)
+        stdout = stdout_b.decode()
         payload: Any = None
         if parse and stdout.strip():
             try:
@@ -282,12 +287,10 @@ class BearClient:
                 raise BearError(
                     str(err.get("message") or "bearcli error"),
                     code=str(err.get("code") or ""),
-                    exit_code=proc.returncode or 1,
+                    exit_code=returncode or 1,
                 )
-        if proc.returncode != 0:
-            message = next((line.strip() for line in stderr.splitlines() if line.strip()), "")
-            code = "conflict" if _STALE_TEXT in message else ""
-            raise BearError(message or "bearcli failed with no error output", code=code, exit_code=proc.returncode or 1)
+        if returncode != 0:
+            raise BearError(_first_line(stderr) or "bearcli failed with no error output", code="conflict" if _STALE_TEXT in stderr else "", exit_code=returncode or 1)
         return payload
 
     # -- reads ---------------------------------------------------------------
@@ -386,6 +389,20 @@ class BearClient:
         )
         return list(rows or [])
 
+    async def attachments(self, note_id: str) -> list[str]:
+        """The note's attachment filenames, as they appear in its markdown links
+        (before percent-encoding)."""
+        rows = await self._run("attachments", "list", note_id, "--format", "json", "--fields", "filename")
+        return [str(r.get("filename")) for r in rows or [] if isinstance(r, dict) and r.get("filename")]
+
+    async def attachment(self, note_id: str, filename: str) -> bytes:
+        """One attachment's bytes. bearcli refuses a TTY for this; stdout is a
+        pipe here, so it always answers."""
+        returncode, data, stderr = await self._spawn("attachments", "save", note_id, "--filename", filename)
+        if returncode != 0:
+            raise BearError(_first_line(stderr) or f"bearcli could not save {filename}", exit_code=returncode)
+        return data
+
     async def tags(self) -> list[str]:
         rows = await self._run("tags", "list", "--format", "json")
         return [normalize_tag(str(r.get("tag"))) for r in rows or [] if r.get("tag")]
@@ -472,6 +489,10 @@ _ESCAPE = str.maketrans({"\\": "\\\\", "\n": "\\n", "\t": "\\t", "\r": "\\r"})
 
 def escape_flag(text: str) -> str:
     return text.translate(_ESCAPE)
+
+
+def _first_line(text: str) -> str:
+    return next((line.strip() for line in text.splitlines() if line.strip()), "")
 
 
 def _count_from(payload: Any) -> int:

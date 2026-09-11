@@ -67,7 +67,7 @@ stylesheet and data-URI images; `BearClient.attachments` / `attachment`; the
 fake bearcli's `attachments list` / `save` and a seeded image note; the
 existing preview `strip` code reshaped into `render.strip_markup`.
 Verify: `uv run pytest tests/test_render_html.py tests/test_bear.py`
-Status: [ ] pending
+Status: [x] done 2026-09-11 (28 passed with test_render.py; full suite 115)
 
 ### Phase 11 — Format picker, HTML and Text exports
 Intent: `x` opens the format prompt then the path prompt; `export_format`
