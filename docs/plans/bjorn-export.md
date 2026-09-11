@@ -97,7 +97,17 @@ five formats; open the HTML in Safari, the RTF(D) in TextEdit, the TXT in a
 text editor, and import the TextBundle into Bear as a new note; confirm images
 and formatting survive in each. Full suite once.
 Verify: `uv run pytest && uv run bjorn` (checklist above)
-Status: [ ] pending
+Status: [x] done 2026-09-11 — run headlessly through the app against the live
+database on a scratch note (table, task list, highlight, underline, nested
+tag, two different PNG attachments), then trashed. All five files landed in
+`~/Downloads/bjorn-export-gate/` and checked: Markdown is the source; HTML
+carries the table, checkboxes, mark and both images as data URIs; TXT has
+the markers gone and structure kept; the RTFD holds both pictures (textutil
+merges byte-identical images into one, which is correct); the TextBundle has
+info.json, rewritten links and both assets. HTML, RTFD and TXT opened in
+Safari, TextEdit and the text editor; the TextBundle is revealed in Finder
+for the import into Bear, which needs Bear's GUI and is left to Jefferson.
+Full suite 125.
 
 ## Deferred (see docs/ROADMAP.md)
 

@@ -7,6 +7,7 @@ Single source of truth for planned and deferred work. The active plan lives in
 
 - Bjorn TUI: `docs/plans/bjorn-tui.md` (2026-09-08).
 - Todo triage: `docs/plans/bjorn-triage.md` (2026-09-08).
+- Export formats: `docs/plans/bjorn-export.md` (2026-09-11).
 
 ## Next
 
