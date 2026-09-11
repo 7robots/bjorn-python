@@ -136,7 +136,7 @@ class NoteList(Vertical):
         color: $success;
         text-style: bold;
     }
-    NoteList.focused > #notes-header {
+    NoteList > #notes-header.focused {
         background: $accent;
         color: $text;
     }
@@ -331,10 +331,11 @@ class NoteList(Vertical):
         return self.search_input.has_class("visible")
 
     def on_descendant_focus(self, event) -> None:
-        self.add_class("focused")
+        # On the header alone: a class on the column would restyle every row.
+        self.query_one("#notes-header").add_class("focused")
 
     def on_descendant_blur(self, event) -> None:
-        self.remove_class("focused")
+        self.query_one("#notes-header").remove_class("focused")
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         if event.input is not self.search_input:

@@ -39,6 +39,19 @@ class ColumnsToggle(Static):
         self.post_message(self.Pressed())
 
 
+class ReaderScroll(VerticalScroll):
+    """The reader's scroll container.
+
+    Textual re-applies the stylesheet to every descendant of a widget when it
+    gains or loses focus. Here that is every Markdown block of the note, some
+    hundreds of widgets, and none of them style by this container's focus, so
+    only the container (and its scrollbars) is restyled.
+    """
+
+    def watch_has_focus(self, _has_focus: bool) -> None:
+        self.app.stylesheet.update_nodes([self], animate=False)
+
+
 class NoteView(Vertical):
     DEFAULT_CSS = """
     NoteView {
@@ -64,11 +77,11 @@ class NoteView(Vertical):
         color: $success;
         text-style: bold;
     }
-    NoteView.focused > #note-bar {
+    NoteView > #note-bar.focused {
         background: $accent;
     }
-    NoteView.focused #note-header,
-    NoteView.focused #columns-toggle {
+    NoteView > #note-bar.focused #note-header,
+    NoteView > #note-bar.focused #columns-toggle {
         color: $text;
     }
     NoteView > #note-scroll {
@@ -101,7 +114,7 @@ class NoteView(Vertical):
         with Horizontal(id="note-bar"):
             yield ColumnsToggle(id="columns-toggle")
             yield Static("", id="note-header")
-        with VerticalScroll(id="note-scroll"):
+        with ReaderScroll(id="note-scroll"):
             yield Markdown("", id="note-markdown", open_links=False)
         yield Static("", id="note-meta")
 
@@ -275,9 +288,10 @@ class NoteView(Vertical):
         """The pane was focused while truncated: the app should render the rest."""
 
     def on_descendant_focus(self, event) -> None:
-        self.add_class("focused")
+        # On the bar alone: a class on the pane would restyle every Markdown block.
+        self.query_one("#note-bar").add_class("focused")
         if not self._rendered_full:
             self.post_message(self.WantsFull())
 
     def on_descendant_blur(self, event) -> None:
-        self.remove_class("focused")
+        self.query_one("#note-bar").remove_class("focused")

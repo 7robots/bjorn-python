@@ -46,6 +46,27 @@ PREVIEW_SETTLE = 0.35
 CONTENT_CACHE_SIZE = 64
 
 
+class QuietFooter(Footer):
+    """Textual's Footer rebuilds every key widget whenever focus moves. Bjorn's
+    bindings are the same in every pane, so rebuild only when the visible set
+    actually changes."""
+
+    _shown: tuple | None = None
+
+    def bindings_changed(self, screen) -> None:
+        self._bindings_ready = True
+        if not screen.app.app_focus or not self.is_attached or screen is not self.screen:
+            return
+        shown = tuple(
+            (binding.key, binding.description, enabled)
+            for (_, binding, enabled, _tooltip) in screen.active_bindings.values()
+            if binding.show
+        )
+        if shown != self._shown:
+            self._shown = shown
+            self.call_after_refresh(self.recompose)
+
+
 class BjornApp(App[None]):
     TITLE = "Bjorn"
     CSS = """
@@ -130,7 +151,7 @@ class BjornApp(App[None]):
             yield Sidebar(icons=self.icons, id="sidebar")
             yield NoteList(id="note-list")
             yield NoteView(id="note-view")
-        yield Footer()
+        yield QuietFooter()
 
     @property
     def sidebar(self) -> Sidebar:
@@ -255,12 +276,16 @@ class BjornApp(App[None]):
 
     @on(Sidebar.ViewSelected)
     async def _on_view_selected(self, event: Sidebar.ViewSelected) -> None:
+        if event.on_focus and self.selection.view is event.view and not self.selection.tag:
+            return  # tabbing back in: the list already shows this; keep cursor and search
         self.search_query = ""
         self.selection = Selection(view=event.view, workspace=self.selection.workspace)
         await self.apply_selection()
 
     @on(Sidebar.TagSelected)
     async def _on_tag_selected(self, event: Sidebar.TagSelected) -> None:
+        if event.on_focus and self.selection.tag == event.tag:
+            return
         self.search_query = ""
         self.selection = Selection(view=View.ALL, tag=event.tag, workspace=self.selection.workspace)
         await self.apply_selection()

@@ -121,21 +121,24 @@ class Sidebar(Vertical):
         padding: 0;
         border: none;
     }
-    Sidebar.focused > #sidebar-header {
+    Sidebar > #sidebar-header.focused {
         background: $accent;
         color: $text;
     }
     """
 
     class ViewSelected(Message):
-        def __init__(self, view: View) -> None:
+        def __init__(self, view: View, *, on_focus: bool = False) -> None:
             super().__init__()
             self.view = view
+            #: Re-announced because the column got focus, not because the cursor moved.
+            self.on_focus = on_focus
 
     class TagSelected(Message):
-        def __init__(self, tag: str) -> None:
+        def __init__(self, tag: str, *, on_focus: bool = False) -> None:
             super().__init__()
             self.tag = tag
+            self.on_focus = on_focus
 
     def __init__(self, icons: IconSet | None = None, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -276,12 +279,12 @@ class Sidebar(Vertical):
 
     # -- events ----------------------------------------------------------------
 
-    def _announce(self, node: TreeNode | None) -> None:
+    def _announce(self, node: TreeNode | None, *, on_focus: bool = False) -> None:
         view = view_of(node)
         if view is not None:
-            self.post_message(self.ViewSelected(view))
+            self.post_message(self.ViewSelected(view, on_focus=on_focus))
         elif tag := tag_of(node):
-            self.post_message(self.TagSelected(tag))
+            self.post_message(self.TagSelected(tag, on_focus=on_focus))
 
     def on_tree_node_highlighted(self, event: Tree.NodeHighlighted) -> None:
         if self._suppress or not self.tree.has_focus:
@@ -295,9 +298,11 @@ class Sidebar(Vertical):
     def on_descendant_focus(self, event) -> None:
         """Moving focus back onto the column re-applies its selection, so the
         notes pane follows the cursor."""
-        self.add_class("focused")
+        # The class goes on the header alone: a class on the column would
+        # restyle every descendant, the whole tag tree included.
+        self.query_one("#sidebar-header").add_class("focused")
         if not self._suppress and event.widget is self.tree:
-            self._announce(self.tree.cursor_node)
+            self._announce(self.tree.cursor_node, on_focus=True)
 
     def on_descendant_blur(self, event) -> None:
-        self.remove_class("focused")
+        self.query_one("#sidebar-header").remove_class("focused")

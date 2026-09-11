@@ -138,3 +138,38 @@ async def test_sidebar_is_one_column_arrows_cross_the_gap_and_tab_reaches_the_no
         await pilot.pause()
         assert app.focused is app.note_list.list_view
         assert app.selection.view is View.TODO and titles(app) == ["Sprint Planning", "Garden Plan"]
+
+
+async def test_tab_into_the_sidebar_keeps_the_cursor_and_the_search(make_app):
+    """Focus returning to the sidebar re-applies nothing when the cursor is
+    where the selection already is: the list keeps its row and a search stays."""
+    app = make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        await loaded(app, pilot)
+        app.note_list.list_view.focus()
+        await pilot.press("j")
+        await wait_until(lambda: app.note_view.note is not None and app.note_view.note.id == "NOTE-GARDEN")
+        rebuilds = []
+        orig = app.note_list.show_notes
+
+        async def counting(*a, **k):
+            rebuilds.append(1)
+            return await orig(*a, **k)
+
+        app.note_list.show_notes = counting
+        app.sidebar.tree.focus()
+        await pilot.pause()
+        assert app.focused is app.sidebar.tree
+        assert rebuilds == []
+        assert app.note_list.current() is not None and app.note_list.current().id == "NOTE-GARDEN"
+        # a search survives the round trip too
+        await pilot.press("tab")
+        await pilot.press("slash")
+        for ch in "bulbs":
+            await pilot.press(ch)
+        await pilot.press("enter")
+        await wait_until(lambda: titles(app) == ["Garden Plan"])
+        app.sidebar.tree.focus()
+        await pilot.pause()
+        assert app.focused is app.sidebar.tree
+        assert app.search_query == "bulbs" and titles(app) == ["Garden Plan"]

@@ -159,3 +159,35 @@ async def test_focused_column_header_is_filled_with_the_accent(make_app):
         app.note_view.scroll_view.focus()
         await wait_until(lambda: lit("#note-bar"))
         assert not lit("#sidebar-header") and not lit("#notes-header")
+
+
+async def test_focus_changes_do_not_restyle_the_whole_note(make_app, monkeypatch):
+    """Textual restyles every descendant of a widget on focus; the reader
+    holds hundreds of Markdown blocks, so its container opts out. Regression
+    guard for the tab lag this caused."""
+    import textual.css.stylesheet as stylesheet
+
+    applied = []
+    original = stylesheet.Stylesheet.apply
+
+    def counting(self, node, *args, **kwargs):
+        applied.append(node)
+        return original(self, node, *args, **kwargs)
+
+    monkeypatch.setattr(stylesheet.Stylesheet, "apply", counting)
+    app = make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        await loaded(app, pilot)
+        await app.note_list.select_id("NOTE-READING")
+        await wait_until(lambda: app.note_view.note is not None and app.note_view.note.id == "NOTE-READING")
+        await pilot.press("enter")
+        await wait_until(lambda: not app.note_view.truncated)
+        assert len(app.note_view.markdown.query("MarkdownBlock")) > 100
+        app.sidebar.tree.focus()
+        await pilot.pause()
+        applied.clear()
+        app.note_view.scroll_view.focus()
+        await pilot.pause()
+        app.note_list.list_view.focus()
+        await pilot.pause()
+        assert len(applied) < 60, f"{len(applied)} widgets restyled for two focus changes"
