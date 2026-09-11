@@ -2,14 +2,21 @@
 
 from __future__ import annotations
 
+import re
+
 from textual.app import ComposeResult
 from textual import events
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.message import Message
+from textual.content import Content
 from textual.widgets import Markdown, Static
+from textual.widgets._markdown import MarkdownBlock, MarkdownFence, MarkdownTable
 
 from ..bear import Note
 from ..render import head_of, preprocess
+
+#: Search matches in the reader. Theme-independent.
+MATCH_STYLE = "reverse bold"
 
 #: Glyph per column count: a hollow block for each hidden column.
 COLUMN_GLYPHS = {3: "▮▮▮", 2: "▯▮▮", 1: "▯▯▮"}
@@ -80,6 +87,12 @@ class NoteView(Vertical):
         self._note: Note | None = None
         self._full_text: str | None = None
         self._rendered_full = True
+        self._pattern: re.Pattern[str] | None = None
+        #: Blocks holding a match, in document order, and the block last jumped to.
+        self._matches: list[MarkdownBlock] = []
+        self._match_index = -1
+        #: Each highlighted block's content before highlighting, to restore on clear.
+        self._originals: dict[MarkdownBlock, Content] = {}
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="note-bar"):
@@ -105,6 +118,76 @@ class NoteView(Vertical):
     def truncated(self) -> bool:
         return not self._rendered_full
 
+    # -- search highlighting -----------------------------------------------------------
+
+    @property
+    def pattern(self) -> re.Pattern[str] | None:
+        return self._pattern
+
+    @property
+    def matches(self) -> list[MarkdownBlock]:
+        return list(self._matches)
+
+    @property
+    def match_index(self) -> int:
+        return self._match_index
+
+    def set_pattern(self, pattern: re.Pattern[str] | None) -> None:
+        """Highlight `pattern` in the rendered note now and in every note
+        shown until it changes; None clears."""
+        if pattern is not None and self._pattern is not None and pattern.pattern == self._pattern.pattern:
+            return
+        self._pattern = pattern
+        self._apply_highlight()
+
+    def _apply_highlight(self) -> None:
+        for block, original in self._originals.items():
+            if block.is_attached:
+                block.set_content(original)
+        self._originals = {}
+        self._matches = []
+        self._match_index = -1
+        pattern = self._pattern
+        if pattern is not None and self._full_text is not None:
+            for block in self.markdown.query(MarkdownBlock):
+                if isinstance(block, (MarkdownFence, MarkdownTable)) or any(
+                    isinstance(a, (MarkdownFence, MarkdownTable)) for a in block.ancestors
+                ):
+                    continue
+                content = block._content
+                if not content.plain or pattern.search(content.plain) is None:
+                    continue
+                self._originals[block] = content
+                block.set_content(content.highlight_regex(pattern, style=MATCH_STYLE))
+                self._matches.append(block)
+        if self._note is not None and self._full_text is not None:
+            self._set_header(self._note, not self._rendered_full, self.markdown.source, self._full_text)
+
+    def reset_match_cursor(self) -> None:
+        """The next `jump(1)` lands on the first match."""
+        self._match_index = -1
+
+    def jump(self, delta: int) -> bool:
+        """Scroll to the next (`delta` 1) or previous (-1) matching block,
+        wrapping, and focus the reader. False when there is nothing to jump to."""
+        if not self._matches:
+            return False
+        self._match_index = (self._match_index + delta) % len(self._matches)
+        block = self._matches[self._match_index]
+        self.scroll_view.scroll_to_widget(block, top=True, animate=False)
+        self.scroll_view.focus()
+        if self._note is not None and self._full_text is not None:
+            self._set_header(self._note, not self._rendered_full, self.markdown.source, self._full_text)
+        return True
+
+    def _match_label(self) -> str:
+        if self._pattern is None or not self._matches:
+            return ""
+        if self._match_index < 0:
+            n = len(self._matches)
+            return f"{n} match" if n == 1 else f"{n} matches"
+        return f"match {self._match_index + 1}/{len(self._matches)}"
+
     def shows(self, note: Note) -> bool:
         """Is this version of `note` (same id, same modification) already on the
         page? An error page counts as not shown."""
@@ -115,6 +198,7 @@ class NoteView(Vertical):
         self._note = None
         self._full_text = None
         self._rendered_full = True
+        self._originals, self._matches, self._match_index = {}, [], -1
         self.query_one("#note-header", Static).update("")
         self.query_one("#note-meta", Static).update("")
         await self.markdown.update(f"*{message}*" if message else "")
@@ -129,28 +213,35 @@ class NoteView(Vertical):
         if max_lines is not None and not self.scroll_view.has_focus:
             shown, truncated = head_of(text, max_lines)
         self._rendered_full = not truncated
+        self._originals, self._matches, self._match_index = {}, [], -1
         self._set_header(note, truncated, shown, text)
         await self.markdown.update(shown)
         self.scroll_view.scroll_home(animate=False)
+        self._apply_highlight()
         return truncated
 
     async def render_full(self) -> None:
         if self._rendered_full or self._note is None or self._full_text is None:
             return
         self._rendered_full = True
+        self._originals, self._matches, self._match_index = {}, [], -1
         self._set_header(self._note, False, self._full_text, self._full_text)
         await self.markdown.update(self._full_text)
+        self._apply_highlight()
 
     async def show_error(self, note: Note, message: str) -> None:
         self._note = note
         self._full_text = None
         self._rendered_full = True
+        self._originals, self._matches, self._match_index = {}, [], -1
         self.query_one("#note-header", Static).update(note.title)
         self.query_one("#note-meta", Static).update("")
         await self.markdown.update(f"*{message}*")
 
     def _set_header(self, note: Note, truncated: bool, shown: str, full: str) -> None:
         header = note.title
+        if label := self._match_label():
+            header += f"  · {label}"
         if truncated:
             header += f"  ({len(shown.splitlines())}/{len(full.splitlines())} lines — focus to read on)"
         self.query_one("#note-header", Static).update(header)

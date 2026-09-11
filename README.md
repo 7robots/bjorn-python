@@ -32,9 +32,9 @@ bjorn --demo          # sample notes through a built-in fake bearcli, no Bear ne
 
 | Key | Action | Key | Action |
 |---|---|---|---|
-| `tab` / `shift+tab` | cycle panes | `/` | search (Bear syntax); `enter` runs it |
+| `tab` / `shift+tab` | cycle panes | `/` | search (Bear syntax); `enter` runs it; matches are highlighted in the reader |
 | `j` `k` `↑` `↓` | move within a pane; in the sidebar the cursor runs from the views into the tags; in the reader they scroll | `esc` | clear the search |
-| `enter` | move into the reader for the highlighted note (clicking a note highlights it) | `1`–`7` | Notes, Untagged, Todo, Today, Pinned, Archive, Trash |
+| `enter` | move into the reader for the highlighted note, at the first match while searching (clicking a note highlights it) | `1`–`7` | Notes, Untagged, Todo, Today, Pinned, Archive, Trash |
 | `n` | new note (title, tags), then edit | `d` | move the note to the trash, after a confirm |
 | `e` | edit in `$EDITOR` | `u` | restore from Trash or Archive |
 | `p` | toggle the global pin | `x` | export: Markdown, HTML, text, RTF, TextBundle (`←` `→` or `h` `l` pick, `enter` confirms) |
@@ -42,11 +42,18 @@ bjorn --demo          # sample notes through a built-in fake bearcli, no Bear ne
 | `f` | fold / unfold the highlighted tag's subtree | `W` | clear the workspace |
 | `F` | fold every tag, or unfold them all when all are folded | `c` / click `▮▮▮` | hide the tag column, then the note column too, then show all three |
 | `t` | triage the workspace's open todos | `r` | refresh now |
-| `?` | help (`esc` `q` `?` close it) | `q` | quit |
+| `]` / `[` | next / previous match in the reader while searching | `?` | help (`esc` `q` `?` close it) |
+| `q` | quit | | |
 
 The **workspace** is a tag subtree that scopes the whole app: the tag tree
 shows only it, the smart views count only inside it, search results are
 filtered to it, and new notes default to it.
+
+Search goes to `bearcli search` unchanged, so Bear's whole syntax works and
+plain terms match body text, not just titles. While a search is active the
+reader highlights the terms, the header counts the matching blocks, `]` and `[`
+step through them, and `enter` on a note lands on its first match. Fenced code
+and tables are listed by Bear but not highlighted.
 
 Views are computed from one `bearcli list` snapshot, so the counts in the
 sidebar and the notes list always agree. **Pinned** means any pin, global or

@@ -250,10 +250,11 @@ Three columns: smart views and tags · notes · the rendered note.
 |---|---|
 | `tab` / `shift+tab` | cycle panes |
 | `j` `k` / `↑` `↓` | move within a pane |
-| `enter` | open the highlighted note in the reader |
+| `enter` | open the highlighted note in the reader, at the first match while searching |
 | `1`–`7` | Notes, Untagged, Todo, Today, Pinned, Archive, Trash |
 | `/` | search with Bear syntax (`@todo`, `#tag`, `"phrase"`, `-term`) |
-| `esc` | clear the search |
+| `esc` | clear the search and its highlights |
+| `]` / `[` | next / previous match in the reader while searching |
 | `n` | new note (title, tags) then edit |
 | `e` | edit in `$VISUAL` / `$EDITOR` |
 | `d` | move the note to the trash |

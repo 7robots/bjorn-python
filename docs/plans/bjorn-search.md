@@ -78,7 +78,7 @@ bearcli: a body-only term highlights the paragraph's Content spans, `]` moves
 the scroll to the second block and updates `k/n`, `[` moves back, `enter` from
 the list lands on the first match, `esc` leaves no highlight spans, a
 truncated long note completes before jumping past the head.
-Status: [ ]
+Status: [x] done 2026-09-11 (5 passed; full suite 140)
 
 ### Phase 17 — List row highlighting
 Intent: `NoteItem.render` highlights the pattern in the title and preview.

@@ -28,6 +28,7 @@ from .model import Selection, View, duplicate_titles, select_notes
 from .reminders import RemctlClient, RemctlError, join as join_reminders, remctl_found, resolve_remctl
 from .render import AUTO_COMPLETE_LINES, BROWSE_LINES
 from .screen import BjornScreen
+from .search import query_pattern
 from .todos import scan_rows
 from .widgets.modals import ConfirmScreen, FormatPrompt, HelpScreen, NewNotePrompt, TextPrompt
 from .widgets.note_list import NoteList
@@ -76,6 +77,8 @@ class BjornApp(App[None]):
         Binding("F", "fold_all", "Fold all", show=False),
         Binding("j", "cursor(1)", "Down", show=False),
         Binding("k", "cursor(-1)", "Up", show=False),
+        Binding("right_square_bracket", "jump_match(1)", "Next match", show=False, key_display="]"),
+        Binding("left_square_bracket", "jump_match(-1)", "Previous match", show=False, key_display="["),
     ] + [Binding(v.hotkey, f"view('{v.value}')", v.label, show=False) for v in View]
 
     def __init__(
@@ -210,6 +213,7 @@ class BjornApp(App[None]):
             if self.search_query:
                 header = f"“{self.search_query}”"
             self.note_list.set_header(f"{header} · {len(notes)}")
+            self.note_view.set_pattern(query_pattern(self.search_query) if self.search_query else None)
             await self.note_list.show_notes(notes, keep_id=keep_id)
 
     def _warn_duplicates(self) -> None:
@@ -280,7 +284,31 @@ class BjornApp(App[None]):
 
     @on(NoteList.Opened)
     def _on_note_opened(self, event: NoteList.Opened) -> None:
+        """`enter` on a row: into the reader, at the first match when searching."""
+        if self.note_view.pattern is not None:
+            self.run_worker(functools.partial(self._jump_match, 1, first=True), group="note-jump")
+            return
         self.note_view.scroll_view.focus()
+
+    async def action_jump_match(self, delta: int) -> None:
+        await self._jump_match(delta)
+
+    async def _jump_match(self, delta: int, *, first: bool = False) -> None:
+        """Render the rest of a truncated note first: the match may be past the head."""
+        view = self.note_view
+        if view.pattern is None:
+            return
+        if view.truncated:
+            await self._render_full(self._load_gen)
+
+        def go() -> None:
+            # After the refresh: freshly mounted blocks have no region to scroll to until then.
+            if first:
+                view.reset_match_cursor()
+            if not view.jump(delta):
+                view.scroll_view.focus()
+
+        self.call_after_refresh(go)
 
     @on(NoteList.SearchSubmitted)
     async def _on_search(self, event: NoteList.SearchSubmitted) -> None:
