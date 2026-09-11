@@ -11,15 +11,15 @@ async def test_w_scopes_and_W_clears(make_app):
         await loaded(app, pilot)
         app.sidebar.tree.focus()
         await pilot.pause()
-        await pilot.press("down")
+        app.sidebar.move_to_tag("home")
         await wait_until(lambda: app.selection.tag == "home")
         await pilot.press("w")
         await wait_until(lambda: app.selection.workspace == "home")
         assert titles(app) == ["Garden Plan", "Reading Queue"]
         assert str(app.sidebar.query_one("#sidebar-header").render()) == "WORKSPACE #home"
-        roots = [str(n.data) for n in app.sidebar.tree.root.children]
+        roots = [str(n.data) for n in app.sidebar.tag_roots()]
         assert roots == ["home"]
-        counts = {item.view.value: item.count for item in app.sidebar.views.query("ViewItem")}
+        counts = {view.value: count for view, count in app.sidebar.tree.view_counts.items()}
         assert counts["all"] == 2 and counts["untagged"] == 0 and counts["todo"] == 1
         await pilot.press("3")
         await wait_until(lambda: titles(app) == ["Garden Plan"])
@@ -59,7 +59,7 @@ async def test_w_again_leaves_the_workspace(make_app):
         await loaded(app, pilot)
         app.sidebar.tree.focus()
         await pilot.pause()
-        await pilot.press("down")
+        app.sidebar.move_to_tag("home")
         await wait_until(lambda: app.selection.tag == "home")
         await pilot.press("w")
         await wait_until(lambda: app.selection.workspace == "home")
@@ -85,11 +85,11 @@ async def test_f_folds_and_unfolds_a_tag(make_app):
     async with app.run_test(size=(120, 40)) as pilot:
         await loaded(app, pilot)
         tree = app.sidebar.tree
-        home = tree.root.children[0]
+        home = app.sidebar.tag_roots()[0]
         assert not home.is_expanded, "tags start folded"
         tree.focus()
         await pilot.pause()
-        await pilot.press("down")
+        app.sidebar.move_to_tag("home")
         await wait_until(lambda: tree.cursor_node is home)
         await pilot.press("f")
         await pilot.pause()
@@ -115,9 +115,9 @@ async def test_folds_survive_entering_and_leaving_a_workspace(make_app, client):
         tree = app.sidebar.tree
         tree.focus()
         await pilot.pause()
-        for node in tree.root.children:
+        for node in app.sidebar.tag_roots():
             node.collapse()
-        assert not any(n.is_expanded for n in tree.root.children)
+        assert not any(n.is_expanded for n in app.sidebar.tag_roots())
         app.sidebar.move_to_tag("home")
         await wait_until(lambda: app.selection.tag == "home")
         await pilot.press("w")
@@ -125,14 +125,14 @@ async def test_folds_survive_entering_and_leaving_a_workspace(make_app, client):
         await pilot.press("w")
         await wait_until(lambda: app.selection.workspace == "")
         await pilot.pause()
-        assert [n.is_expanded for n in tree.root.children] == [False, False]
+        assert [n.is_expanded for n in app.sidebar.tag_roots()] == [False, False]
         # a reload (poll / r) keeps them folded too, and a fold made now is kept
-        tree.root.children[1].expand()
+        app.sidebar.tag_roots()[1].expand()
         await client.create("Another", ["home/new"])
         await pilot.press("r")
         await wait_until(lambda: any(n.title == "Another" for n in app.snapshot.notes))
         await pilot.pause()
-        assert [n.is_expanded for n in tree.root.children] == [False, True]
+        assert [n.is_expanded for n in app.sidebar.tag_roots()] == [False, True]
 
 
 async def test_F_toggles_every_fold_and_respects_the_workspace(make_app):
@@ -160,12 +160,12 @@ async def test_F_toggles_every_fold_and_respects_the_workspace(make_app):
         await wait_until(lambda: app.selection.workspace == "work")
         await pilot.press("F")
         await pilot.pause()
-        assert [str(n.data) for n in tree.root.children] == ["work"]
-        assert not tree.root.children[0].is_expanded
+        assert [str(n.data) for n in app.sidebar.tag_roots()] == ["work"]
+        assert not app.sidebar.tag_roots()[0].is_expanded
         await pilot.press("w")
         await wait_until(lambda: app.selection.workspace == "")
         await pilot.pause()
-        states = {str(n.data): n.is_expanded for n in tree.root.children}
+        states = {str(n.data): n.is_expanded for n in app.sidebar.tag_roots()}
         assert states == {"home": True, "work": False}
 
 

@@ -9,6 +9,7 @@ from bjorn.widgets.note_list import NoteList
 from bjorn.widgets.note_view import NoteView
 from bjorn.widgets.sidebar import Sidebar
 
+from bjorn.model import View
 from helpers import loaded, titles, wait_until
 
 
@@ -56,9 +57,9 @@ async def test_sidebar_counts_match_the_snapshot(make_app):
     app = make_app()
     async with app.run_test(size=(120, 40)) as pilot:
         await loaded(app, pilot)
-        counts = {item.view.value: item.count for item in app.sidebar.views.query("ViewItem")}
+        counts = {view.value: count for view, count in app.sidebar.tree.view_counts.items()}
         assert counts == {"all": 5, "untagged": 1, "todo": 2, "today": 1, "pinned": 2, "archive": 1, "trash": 1}
-        tags = [str(node.data) for node in app.sidebar.tree.root.children]
+        tags = [str(node.data) for node in app.sidebar.tag_roots()]
         assert tags == ["home", "work"]
 
 
@@ -86,15 +87,15 @@ async def test_mouse_click_selects_without_stealing_focus(make_app):
         await pilot.pause()
         assert app.focused is app.note_view.scroll_view
         tree = app.sidebar.tree
-        home = tree.root.children[0]
+        home = app.sidebar.tag_roots()[0]
         assert not home.is_expanded, "tags start folded"
-        await pilot.click(tree, offset=(4, 0))
+        await pilot.click(tree, offset=(4, home.line))
         await wait_until(lambda: app.selection.tag == "home")
         assert not home.is_expanded, "clicking a tag must select it, not toggle it"
         assert app.focused is tree
-        await pilot.click("#view-untagged")
+        await pilot.click(tree, offset=(4, app.sidebar.view_node(View.UNTAGGED).line))
         await wait_until(lambda: titles(app) == ["Loose Thought"])
-        assert app.focused is app.sidebar.views
+        assert app.focused is tree
 
 
 async def test_note_rows_show_a_preview_and_no_tags(make_app):
@@ -121,13 +122,20 @@ async def test_tag_counts_sit_flush_right_at_every_depth(make_app):
         await pilot.press("F")  # unfold every tag so nested rows render too
         await pilot.pause()
         width = tree.size.width
-        rows = 0
+        rows = views = 0
         for line in range(len(tree._tree_lines)):
+            node = tree.get_node_at_line(line)
             strip = tree._render_line(line, 0, width, tree.rich_style)
             text = strip.text.rstrip()
-            if not text:
+            if node is None or node.data is None:
+                assert text in ("", "TAGS"), text  # the gap rows carry no count
                 continue
-            rows += 1
-            assert cell_len(text) == width, text  # the count is the last cell of the row
-            assert text.split()[-1].isdigit(), text
+            assert cell_len(text) == width, text  # the count (or hotkey) is the last cell of the row
+            if isinstance(node.data, tuple):
+                views += 1
+                assert text.split()[-1].isdigit() and text.split()[-2].isdigit(), text  # count, then hotkey
+            else:
+                rows += 1
+                assert text.split()[-1].isdigit(), text
+        assert views == 7
         assert rows >= 3 and any(len(l.path) > 1 for l in tree._tree_lines)  # at least one nested tag (paths omit the hidden root)

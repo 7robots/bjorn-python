@@ -33,7 +33,7 @@ bjorn --demo          # sample notes through a built-in fake bearcli, no Bear ne
 | Key | Action | Key | Action |
 |---|---|---|---|
 | `tab` / `shift+tab` | cycle panes | `/` | search (Bear syntax) |
-| `j` `k` `↑` `↓` | move within a pane | `esc` | clear the search |
+| `j` `k` `↑` `↓` | move within a pane; in the sidebar the cursor runs from the views into the tags | `esc` | clear the search |
 | `enter` / click | read the highlighted note / highlight it | `1`–`7` | Notes, Untagged, Todo, Today, Pinned, Archive, Trash |
 | `n` | new note (title, tags), then edit | `d` | move the note to the trash |
 | `e` | edit in `$EDITOR` | `u` | restore from Trash or Archive |

@@ -18,8 +18,9 @@ async def test_mouse_down_on_a_detached_markdown_block_does_not_crash(make_app):
     app = make_app()
     async with app.run_test(size=(120, 40)) as pilot:
         await loaded(app, pilot)
-        await wait_until(lambda: bool(app.note_view.markdown.query(MarkdownBlock)))
-        block = app.note_view.markdown.query(MarkdownBlock).first()
+        # A block exists a frame before it has a region; the click must land on one.
+        await wait_until(lambda: any(b.region.width for b in app.note_view.markdown.query(MarkdownBlock)))
+        block = next(b for b in app.note_view.markdown.query(MarkdownBlock) if b.region.width)
         region = block.region
         parent = block.parent
         x, y = region.x + 1, region.y

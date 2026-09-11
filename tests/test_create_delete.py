@@ -35,7 +35,7 @@ async def test_new_note_defaults_tags_to_selected_tag(make_app):
         await loaded(app, pilot)
         app.sidebar.tree.focus()
         await pilot.pause()
-        await pilot.press("down")
+        app.sidebar.move_to_tag("home")
         await wait_until(lambda: app.selection.tag == "home")
         await pilot.press("n")
         await pilot.pause()

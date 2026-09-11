@@ -196,7 +196,7 @@ class BjornApp(App[None]):
             if not self.is_running:
                 return
             current = self.note_list.current()
-            await self.sidebar.populate(self.snapshot, self.selection.workspace, keep_tag=self.selection.tag)
+            await self.sidebar.populate(self.snapshot, self.selection.workspace, keep_tag=self.selection.tag, keep_view=self.selection.view)
             await self.apply_selection(keep_id=focus_id or keep_id or (current.id if current else None))
             if focus_id:
                 await self.note_list.select_id(focus_id)
@@ -460,7 +460,7 @@ class BjornApp(App[None]):
             return
         if node.allow_expand:
             node.toggle()
-        elif node.parent is not None and node.parent is not tree.root:
+        elif node.parent is not None and node.parent is not tree.root and self.sidebar.highlighted_tag():
             tree.move_cursor(node.parent)
             node.parent.collapse()
 
@@ -470,7 +470,6 @@ class BjornApp(App[None]):
         self.selection = Selection(view=View.ALL, workspace=tag)
         await self.sidebar.populate(self.snapshot, tag)
         await self.apply_selection()
-        self.sidebar.select_view(View.ALL)
         self.notify(f"Workspace: {display_tag(tag)}" if tag else "Workspace cleared", timeout=3)
 
     async def action_clear_workspace(self) -> None:

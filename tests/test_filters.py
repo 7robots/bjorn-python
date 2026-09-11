@@ -25,21 +25,22 @@ async def test_number_keys_switch_views(make_app):
             assert app.selection.view is View(list(View)[int(key) - 1].value)
         header = str(app.note_list.query_one("#notes-header").render())
         assert header == "Notes · 5"
-        assert app.sidebar.views.index == 0
+        assert app.sidebar.highlighted_view() is View.ALL
 
 
 async def test_sidebar_cursor_selects_views_and_tags(make_app):
     app = make_app()
     async with app.run_test(size=(120, 40)) as pilot:
         await loaded(app, pilot)
-        app.sidebar.views.focus()
+        app.sidebar.tree.focus()
         await pilot.press("j")
         await wait_until(lambda: titles(app) == ["Loose Thought"])
         assert str(app.note_list.query_one("#notes-header").render()) == "Untagged · 1"
-        app.sidebar.tree.focus()
-        await pilot.pause()
-        await pilot.press("down")
+        # Down through the remaining views and over the gap lands on the first tag.
+        for _ in range(6):
+            await pilot.press("down")
         await wait_until(lambda: app.selection.tag == "home")
+        assert app.sidebar.highlighted_tag() == "home"
         assert titles(app) == ["Garden Plan", "Reading Queue"]
         await pilot.press("f")  # tags start folded
         await pilot.pause()
@@ -108,3 +109,32 @@ async def test_reload_leaves_an_unchanged_note_on_the_page(make_app):
         await pilot.pause(0.3)
         assert app.note_view.note == shown
         assert calls == {"show": 0, "clear": 0}
+
+
+async def test_sidebar_is_one_column_arrows_cross_the_gap_and_tab_reaches_the_notes(make_app):
+    """The seven views and the tags share one tree: `down` from Trash lands on
+    the first tag, `up` from it returns to Trash, and `tab` from a view goes to
+    the notes list without touching the selection."""
+    app = make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        await loaded(app, pilot)
+        tree = app.sidebar.tree
+        tree.focus()
+        await pilot.pause()
+        app.sidebar.select_view(View.TRASH)
+        await pilot.pause()
+        await pilot.press("down")
+        await wait_until(lambda: app.sidebar.highlighted_tag() == "home")
+        assert app.selection.tag == "home"
+        await pilot.press("up")
+        await wait_until(lambda: app.sidebar.highlighted_view() is View.TRASH)
+        assert app.selection.view is View.TRASH and not app.selection.tag
+        # The gap: two blank rows and the TAGS heading, none of them a stop.
+        gap = app.sidebar.tag_roots()[0].line - app.sidebar.view_node(View.TRASH).line - 1
+        assert gap == 3
+        await pilot.press("3")
+        await wait_until(lambda: app.selection.view is View.TODO)
+        await pilot.press("tab")
+        await pilot.pause()
+        assert app.focused is app.note_list.list_view
+        assert app.selection.view is View.TODO and titles(app) == ["Sprint Planning", "Garden Plan"]

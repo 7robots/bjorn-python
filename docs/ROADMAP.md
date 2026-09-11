@@ -10,9 +10,6 @@ Single source of truth for planned and deferred work. The active plan lives in
 
 ## Next
 
-- Keyboard navigation tweaks (2026-09-10): moving out of and around the seven
-  smart views in the upper left is awkward; review how `tab`, `j`/`k` and the
-  number keys hand focus between the views, the tag tree and the note list.
 - PDF export (deferred 2026-09-08): markdown-it-py → HTML with a Bear-like
   stylesheet → headless Chromium-family browser (`--headless=new --print-to-pdf`,
   Edge/Chrome autodetected). Verified with Edge: the PDF lands but the process
