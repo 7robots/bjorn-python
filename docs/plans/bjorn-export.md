@@ -105,9 +105,10 @@ carries the table, checkboxes, mark and both images as data URIs; TXT has
 the markers gone and structure kept; the RTFD holds both pictures (textutil
 merges byte-identical images into one, which is correct); the TextBundle has
 info.json, rewritten links and both assets. HTML, RTFD and TXT opened in
-Safari, TextEdit and the text editor; the TextBundle is revealed in Finder
-for the import into Bear, which needs Bear's GUI and is left to Jefferson.
-Full suite 125.
+Safari, TextEdit and the text editor. Jefferson imported the TextBundle into
+Bear through its GUI: both attachments and the formatting came through (the
+4-pixel test squares show large in Bear's list thumbnails and tiny in the
+note, which is Bear scaling, not the export). Full suite 125.
 
 ## Deferred (see docs/ROADMAP.md)
 
