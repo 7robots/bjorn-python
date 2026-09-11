@@ -209,7 +209,14 @@ def find_note(state: dict, note_id: str | None, title: str | None) -> dict | Non
 
 def note_has_tag(note: dict, tag: str) -> bool:
     tag = tag.strip().strip("#").strip()
-    return any(t == tag or t.startswith(tag + "/") for t in note.get("tags") or [])
+    tags = note.get("tags") or []
+    if tag.startswith("*/"):
+        tail = tag[2:].lower()
+        return any(
+            "/".join(t.split("/")[i:]).lower() in (tail,) or "/".join(t.split("/")[i:]).lower().startswith(tail + "/")
+            for t in tags for i in range(1, len(t.split("/")))
+        )
+    return any(t == tag or t.startswith(tag + "/") for t in tags)
 
 
 def sort_notes(notes: list[dict], spec: str) -> list[dict]:

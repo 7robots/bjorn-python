@@ -28,7 +28,7 @@ from .model import Selection, View, duplicate_titles, select_notes
 from .reminders import RemctlClient, RemctlError, join as join_reminders, remctl_found, resolve_remctl
 from .render import AUTO_COMPLETE_LINES, BROWSE_LINES
 from .screen import BjornScreen
-from .search import query_pattern
+from .search import query_pattern, rewrite_subtags
 from .todos import scan_rows
 from .widgets.modals import ConfirmScreen, FormatPrompt, HelpScreen, NewNotePrompt, TextPrompt
 from .widgets.note_list import NoteList
@@ -315,8 +315,11 @@ class BjornApp(App[None]):
 
     @on(NoteList.SearchSubmitted)
     async def _on_search(self, event: NoteList.SearchSubmitted) -> None:
-        self.search_query = event.query
-        query = event.query
+        query = rewrite_subtags(event.query, self.query_tags())
+        if query != event.query:
+            self.note_list.search_input.value = query
+            self.notify(f"Sub-tag search: {query}", timeout=3)
+        self.search_query = query
         self.run_worker(functools.partial(self._search_worker, query), name="search", group="search")
 
     async def _search_worker(self, query: str) -> None:

@@ -14,7 +14,7 @@ from textual.message import Message
 from textual.widgets import Input, ListItem, ListView, Static
 
 from ..search import MATCH_STYLE
-from ..search_box import HINT, QuerySuggester
+from ..search_box import HINT, QuerySuggester, SearchInput
 from ..bear import Note
 
 
@@ -142,6 +142,9 @@ class NoteList(Vertical):
     NoteList > #search {
         display: none;
         height: 3;
+        border: tall $panel;
+    }
+    NoteList > #search:focus {
         border: tall $accent;
     }
     NoteList > #search.visible {
@@ -211,7 +214,7 @@ class NoteList(Vertical):
 
     def compose(self) -> ComposeResult:
         yield Static("NOTES", id="notes-header")
-        yield Input(
+        yield SearchInput(
             placeholder="Search (Bear syntax) — enter to run, esc to clear",
             id="search",
             suggester=QuerySuggester(lambda: self.tag_source()),

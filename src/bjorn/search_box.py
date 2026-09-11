@@ -9,7 +9,9 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 
+from textual.binding import Binding
 from textual.suggester import Suggester
+from textual.widgets import Input
 
 #: bearcli's search operators, most used first. The parenthesised ones stop
 #: at `(` so the argument is left to type; X-day forms offer 7 as the digit.
@@ -24,7 +26,7 @@ OPERATORS: tuple[str, ...] = (
 )
 
 #: The cheat-sheet row shown under the box while it is open.
-HINT = '"phrase"  -term  #tag  @todo  @title  @today  @last7days  @pinned  ·  → accepts a completion'
+HINT = '"phrase"  -term  #tag  #*/subtag  @todo  @title  @today  @last7days  @pinned  ·  tab or → accepts a completion'
 
 
 def with_parents(tags: Sequence[str]) -> list[str]:
@@ -64,18 +66,27 @@ def complete_token(token: str, tags: Sequence[str]) -> str | None:
     body = token[2:] if bang else token[1:]
     prefix = "!" if bang else ""
     if body.startswith("*/"):
-        # Sub-tag search: any tag's tail below its first segment.
-        tails: list[str] = []
-        for tag in tags:
-            parts = tag.split("/")
-            for i in range(1, len(parts)):
-                tail = "/".join(parts[i:])
-                if tail not in tails:
-                    tails.append(tail)
-        found = _first_prefixed(tails, body[2:])
+        found = _first_prefixed(_tails(tags), body[2:])
         return None if found is None else f"{prefix}#*/{found}"
     found = _first_prefixed(list(tags), body)
-    return None if found is None else prefix + _tag_token(found)
+    if found is not None:
+        return prefix + _tag_token(found)
+    # No path starts this way: offer the sub-tag form, which is how Bear
+    # reaches a tag by its tail (`#Build` matches nothing, `#*/Build` does).
+    found = _first_prefixed(_tails(tags), body)
+    return None if found is None else f"{prefix}#*/{found}"
+
+
+def _tails(tags: Sequence[str]) -> list[str]:
+    """Every tag's tail below its first segment: `a/b/c` gives `b/c` and `c`."""
+    tails: list[str] = []
+    for tag in tags:
+        parts = tag.split("/")
+        for i in range(1, len(parts)):
+            tail = "/".join(parts[i:])
+            if tail not in tails:
+                tails.append(tail)
+    return tails
 
 
 def complete(value: str, tags: Sequence[str]) -> str | None:
@@ -99,3 +110,17 @@ class QuerySuggester(Suggester):
 
     async def get_suggestion(self, value: str) -> str | None:
         return complete(value, with_parents(self._tags()))
+
+
+class SearchInput(Input):
+    """The search box: `tab` accepts the ghost completion like `→` does, and
+    only moves focus when there is nothing to accept."""
+
+    BINDINGS = [Binding("tab", "accept_or_focus_next", "Accept", show=False)]
+
+    def action_accept_or_focus_next(self) -> None:
+        if self._suggestion and len(self._suggestion) > len(self.value):
+            self.cursor_position = len(self.value)
+            self.action_cursor_right()
+        else:
+            self.screen.focus_next()

@@ -53,3 +53,25 @@ def test_pattern_prefers_the_longest_alternative():
 def test_substring_match_no_word_boundaries():
     p = query_pattern("bulb")
     assert p is not None and p.search("lightbulbs") is not None
+
+
+# -- bare sub-tags -----------------------------------------------------------------
+
+from bjorn.search import rewrite_subtags  # noqa: E402
+
+TAGS = ["kybernetes", "kybernetes/Build", "kybernetes/Seasons/Decode", "home", "home/garden"]
+
+
+def test_bare_subtag_becomes_bears_subtag_form():
+    assert rewrite_subtags("#Build", TAGS) == "#*/Build"
+    assert rewrite_subtags("robot #build notes", TAGS) == "robot #*/build notes"
+    assert rewrite_subtags("#Seasons/Decode", TAGS) == "#*/Seasons/Decode"
+
+
+def test_known_paths_exact_and_subtag_forms_are_untouched():
+    assert rewrite_subtags("#kybernetes/Build", TAGS) == "#kybernetes/Build"
+    assert rewrite_subtags("#home", TAGS) == "#home"
+    assert rewrite_subtags("!#Build", TAGS) == "!#Build"
+    assert rewrite_subtags("#*/Build", TAGS) == "#*/Build"
+    assert rewrite_subtags("#nothing", TAGS) == "#nothing"
+    assert rewrite_subtags("plain words", TAGS) == "plain words"

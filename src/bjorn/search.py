@@ -10,6 +10,7 @@ match no text, so they are dropped.
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 
 from .render import TAG_TOKEN_RE
 
@@ -55,3 +56,27 @@ def pattern(words: list[str]) -> re.Pattern[str] | None:
 
 def query_pattern(query: str) -> re.Pattern[str] | None:
     return pattern(terms(query))
+
+
+_BARE_TAG_RE = re.compile(r"(?<![\w!#*/])#(?!\*/)([^\s#]+(?:[^#\n]*?#(?=\s|$))?)")
+
+
+def rewrite_subtags(query: str, tags: Sequence[str]) -> str:
+    """Bear matches `#name` against full tag paths only; `#*/name` reaches a
+    sub-tag by its tail. A bare `#name` that is no tag path but is the tail
+    of one becomes `#*/name`. `!#`, `#*/` and known paths are left alone."""
+    paths = {t.lower() for t in tags}
+    tails: set[str] = set()
+    for t in tags:
+        parts = t.split("/")
+        for i in range(1, len(parts)):
+            tails.add("/".join(parts[i:]).lower())
+
+    def fix(m: re.Match[str]) -> str:
+        body = m.group(1)
+        key = body.rstrip("#").lower()
+        if key in paths or key not in tails:
+            return m.group(0)
+        return "#*/" + body
+
+    return _BARE_TAG_RE.sub(fix, query)

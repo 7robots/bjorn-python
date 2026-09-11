@@ -142,3 +142,41 @@ async def test_hint_hides_with_the_box(make_app):
         await pilot.pause()
         assert not app.note_list.hint_visible
         assert not app.note_list.search_open
+
+
+# -- bare sub-tags and tab ------------------------------------------------------------
+
+
+def test_bare_subtag_prefix_completes_to_the_subtag_form():
+    tags = with_parents(["kybernetes/Build", "kybernetes/Seasons/Decode"])
+    assert complete("#Bui", tags) == "#*/Build"
+    assert complete("#seas", tags) == "#*/Seasons"
+    assert complete("#kyb", tags) == "#kybernetes"  # a real path still wins
+
+
+async def test_tab_accepts_the_completion_and_otherwise_moves_focus(make_app):
+    app = make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        await loaded(app, pilot)
+        await pilot.press("slash")
+        await type_text(pilot, "@to")
+        await wait_until(lambda: app.note_list.search_input._suggestion == "@todo")
+        await pilot.press("tab")
+        await pilot.pause()
+        assert app.note_list.search_input.value == "@todo"
+        assert app.focused is app.note_list.search_input
+        await pilot.press("tab")
+        await pilot.pause()
+        assert app.focused is not app.note_list.search_input
+
+
+async def test_bare_subtag_search_is_rewritten_and_finds_the_note(make_app):
+    app = make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        await loaded(app, pilot)
+        await pilot.press("slash")
+        await type_text(pilot, "#garden")
+        await pilot.press("enter")
+        await wait_until(lambda: app.search_query == "#*/garden")
+        await wait_until(lambda: titles(app) == ["Garden Plan"])
+        assert app.note_list.search_input.value == "#*/garden"
