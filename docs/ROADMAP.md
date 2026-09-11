@@ -10,14 +10,13 @@ Single source of truth for planned and deferred work. The active plan lives in
 - Export formats: `docs/plans/bjorn-export.md` (2026-09-11).
 - Search highlighting and jump-to-match: `docs/plans/bjorn-search.md` (2026-09-11).
 
+## Active plan
+
+- Search operators in the search box: `docs/plans/bjorn-search-box.md`
+  (approved 2026-09-11).
+
 ## Next
 
-- Surface bearcli's search operators in the search box (2026-09-11): the
-  query already passes through verbatim, so `@todo`, `@title`, `#tag`,
-  `"phrase"` and `-term` all work, but nothing in the UI says so. Candidates
-  when this comes up: a hint row under the input listing the operators, a
-  completion popup on `@` / `#`, or toggles for the common scopes (title
-  only, todos, tag). Jefferson wants to weigh these later, not now.
 - PDF export (deferred 2026-09-08, approach open 2026-09-11). The tested route
   is the HTML renderer from the export plan fed to a headless Chromium-family
   browser (`--headless=new --print-to-pdf`; verified with Edge, which writes the
