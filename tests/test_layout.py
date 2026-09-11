@@ -42,7 +42,7 @@ async def test_long_note_is_truncated_until_focused(make_app):
     async with app.run_test(size=(120, 40)) as pilot:
         await loaded(app, pilot)
         app.note_list.list_view.focus()
-        app.note_list.select_id("NOTE-READING")
+        await app.note_list.select_id("NOTE-READING")
         await wait_until(lambda: app.note_view.note is not None and app.note_view.note.id == "NOTE-READING")
         assert app.note_view.truncated
         assert "lines" in str(app.note_view.query_one("#note-header").render())
@@ -98,18 +98,19 @@ async def test_mouse_click_selects_without_stealing_focus(make_app):
 
 
 async def test_note_rows_show_a_preview_and_no_tags(make_app):
-    from bjorn.widgets.note_list import PreviewText
-
     app = make_app()
     async with app.run_test(size=(120, 40)) as pilot:
         await loaded(app, pilot)
         await pilot.pause()
         first = app.note_list.list_view.query("NoteItem").first()
         assert first.note.preview
-        rendered = first.query_one(PreviewText).render().plain
+        rendered = first.preview_text()
         assert first.note.preview.split()[0] in rendered
         assert "#" not in rendered
         assert rendered.count("\n") <= 1
+        whole = first.render().plain
+        assert whole.startswith(first.note.title) or first.note.title in whole.split("\n")[0]
+        assert whole.count("\n") <= 2
 
 
 async def test_tag_counts_sit_flush_right_at_every_depth(make_app):

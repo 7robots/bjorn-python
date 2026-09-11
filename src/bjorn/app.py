@@ -10,6 +10,7 @@ import shlex
 import subprocess
 import sys
 import tempfile
+from collections import OrderedDict
 from pathlib import Path
 
 from textual import on
@@ -19,7 +20,7 @@ from textual.containers import Horizontal, VerticalScroll
 from textual.timer import Timer
 from textual.widgets import Footer, Input, ListView, Tree
 
-from .bear import BearClient, BearError, Note, NoteContent, Probe, Snapshot, display_tag, normalize_tag, resolve_bearcli
+from .bear import BearClient, BearError, Note, NoteContent, Probe, Snapshot, display_tag, normalize_tag, recently_modified, resolve_bearcli
 from .config import Config, editor_available, resolve_editor
 from .export import default_export_path, export_markdown, safe_filename
 from .icons import IconSet
@@ -39,6 +40,9 @@ PREVIEW_DEBOUNCE = 0.12
 #: After a truncated render, how long the cursor must rest before the rest is
 #: rendered automatically (only for notes up to AUTO_COMPLETE_LINES).
 PREVIEW_SETTLE = 0.35
+#: Note bodies kept in memory, most recently read last. Each is keyed by the
+#: note's modification stamp, so a changed note is fetched again on its own.
+CONTENT_CACHE_SIZE = 64
 
 
 class BjornApp(App[None]):
@@ -96,7 +100,10 @@ class BjornApp(App[None]):
         ws = self.config.workspace if workspace is None else workspace
         self.selection = Selection(workspace=normalize_tag(ws or ""))
         self.search_query = ""
-        self._content_cache: dict[str, tuple[str, NoteContent]] = {}
+        self._content_cache: OrderedDict[str, tuple[str, NoteContent]] = OrderedDict()
+        # Bumped whenever an entry is dropped, so a read that was in flight
+        # when its note was rewritten does not put the old body back.
+        self._cache_epoch = 0
         self._preview_timer: Timer | None = None
         self._settle_timer: Timer | None = None
         self._poll_timer: Timer | None = None
@@ -172,24 +179,27 @@ class BjornApp(App[None]):
         async with self._reload_lock:
             if not self.is_running:
                 return
-            try:
-                snapshot = await self.client.snapshot()
-            except BearError as exc:
-                self.notify(str(exc), title="bearcli", severity="error", timeout=10)
+            # The probe runs alongside the snapshot: both are bearcli calls, and
+            # the probe taken here is what the next poll compares against.
+            snapshot, probe = await asyncio.gather(self.client.snapshot(), self.client.probe(), return_exceptions=True)
+            if isinstance(snapshot, BaseException):
+                if not isinstance(snapshot, BearError):
+                    raise snapshot
+                self.notify(str(snapshot), title="bearcli", severity="error", timeout=10)
                 if not self.loaded:
-                    await self._clear_view(f"Could not read Bear: {exc}")
+                    await self._clear_view(f"Could not read Bear: {snapshot}")
                 return
             self.snapshot = snapshot
             self.loaded = True
-            with contextlib.suppress(BearError):
-                self._last_probe = await self.client.probe()
+            if isinstance(probe, Probe):
+                self._last_probe = probe
             if not self.is_running:
                 return
             current = self.note_list.current()
             await self.sidebar.populate(self.snapshot, self.selection.workspace, keep_tag=self.selection.tag)
             await self.apply_selection(keep_id=focus_id or keep_id or (current.id if current else None))
             if focus_id:
-                self.note_list.select_id(focus_id)
+                await self.note_list.select_id(focus_id)
             self._warn_duplicates()
 
     async def apply_selection(self, *, keep_id: str | None = None) -> None:
@@ -227,7 +237,6 @@ class BjornApp(App[None]):
             return
         if self._last_probe is not None and probe != self._last_probe:
             self._last_probe = probe
-            self._content_cache.clear()
             await self.reload()
             current = self.note_list.current()
             if current is not None:
@@ -299,7 +308,12 @@ class BjornApp(App[None]):
 
     # -- preview ---------------------------------------------------------------------
 
-    def _schedule_preview(self, note: Note, *, immediate: bool = False) -> None:
+    def _schedule_preview(self, note: Note, *, immediate: bool = False, force: bool = False) -> None:
+        """Render `note` after the debounce, unless the reader already shows this
+        version of it: a list rebuild re-highlights the same note, and redrawing
+        it would blank and remount the whole page for nothing."""
+        if not force and not recently_modified(note.modified) and self.note_view.shows(note):
+            return
         if self._preview_timer is not None:
             self._preview_timer.stop()
         if self._settle_timer is not None:
@@ -318,12 +332,26 @@ class BjornApp(App[None]):
 
     async def _fetch_content(self, note: Note) -> NoteContent:
         stamp = note.modified.isoformat() if note.modified else ""
+        fresh = recently_modified(note.modified)
         cached = self._content_cache.get(note.id)
-        if cached and cached[0] == stamp:
+        if cached and cached[0] == stamp and not fresh:
+            self._content_cache.move_to_end(note.id)
             return cached[1]
+        epoch = self._cache_epoch
         content = await self.client.cat(note.id)
-        self._content_cache[note.id] = (stamp, content)
+        if epoch == self._cache_epoch and not fresh:
+            self._content_cache[note.id] = (stamp, content)
+            while len(self._content_cache) > CONTENT_CACHE_SIZE:
+                self._content_cache.popitem(last=False)
         return content
+
+    def _forget_content(self, note_id: str | None = None) -> None:
+        """Drop one note's body (or all of them) and outdate any read in flight."""
+        if note_id is None:
+            self._content_cache.clear()
+        else:
+            self._content_cache.pop(note_id, None)
+        self._cache_epoch += 1
 
     async def _load_note(self, note: Note, gen: int) -> None:
         view = self.note_view
@@ -387,14 +415,14 @@ class BjornApp(App[None]):
             await self.apply_selection()
 
     def action_refresh(self) -> None:
-        self._content_cache.clear()
+        self._forget_content()
         self.run_worker(self._refresh_worker, name="reload", group="reload")
 
     async def _refresh_worker(self) -> None:
         await self.reload()
         current = self.current_note()
         if current is not None:
-            self._schedule_preview(current, immediate=True)
+            self._schedule_preview(current, immediate=True, force=True)
 
     def action_help(self) -> None:
         self.push_screen(HelpScreen())
@@ -530,7 +558,6 @@ class BjornApp(App[None]):
             self.notify("\n".join(failures), title="Some todos were not ticked (the line changed in Bear?)", severity="warning", timeout=10)
         elif ticked:
             self.notify(f"Ticked {len(ticked)} in Bear.", timeout=2)
-        self._content_cache.clear()
         await self.reload()
         if self.triage is not None:
             await self._triage_load()
@@ -542,12 +569,12 @@ class BjornApp(App[None]):
     async def _triage_goto(self, note_id: str) -> None:
         if self.triage is not None:
             self.pop_screen()
-        if not self.note_list.select_id(note_id):
+        if not await self.note_list.select_id(note_id):
             self.search_query = ""
             self.selection = Selection(view=View.ALL, workspace=self.selection.workspace)
             self.sidebar.select_view(View.ALL)
             await self.apply_selection(keep_id=note_id)
-            self.note_list.select_id(note_id)
+            await self.note_list.select_id(note_id)
         self.note_list.list_view.focus()
         current = self.current_note()
         if current is not None:
@@ -610,7 +637,6 @@ class BjornApp(App[None]):
         except BearError as exc:
             self.notify(str(exc), title="Create failed", severity="error", timeout=10)
             return
-        self._content_cache.clear()
         await self.reload(focus_id=note_id)
         note = self.snapshot.by_id(note_id)
         if note is not None:
@@ -667,12 +693,12 @@ class BjornApp(App[None]):
                 self.notify(f"{exc} — your version is at {tmp}", title="Write failed", severity="error", timeout=30)
             return
         self._cleanup(tmp)
-        self._content_cache.pop(note.id, None)
+        self._forget_content(note.id)
         self._written_titles.add(note.title)
         await self.reload(keep_id=note.id)
         current = self.current_note()
         if current is not None and current.id == note.id:
-            self._schedule_preview(current, immediate=True)
+            self._schedule_preview(current, immediate=True, force=True)
         self.notify("Saved to Bear.", timeout=2)
 
     def _run_editor(self, command: list[str]) -> None:
@@ -709,7 +735,7 @@ class BjornApp(App[None]):
         except BearError as exc:
             self.notify(str(exc), title="Trash failed", severity="error", timeout=10)
             return
-        self._content_cache.pop(note.id, None)
+        self._forget_content(note.id)
         await self.reload()
         self.notify(f"Trashed “{note.title}” — restore it from the Trash view with u.", timeout=4)
 

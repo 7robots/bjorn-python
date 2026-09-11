@@ -78,3 +78,33 @@ async def test_poll_reloads_when_the_probe_changes(client, config):
         await loaded(app, pilot)
         await client.create("Polled In", ["home"])
         await wait_until(lambda: "Polled In" in titles(app), timeout=6)
+
+
+async def test_reload_leaves_an_unchanged_note_on_the_page(make_app):
+    """A poll that changes nothing the reader shows must not blank and redraw it."""
+    app = make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        await loaded(app, pilot)
+        # The first note is stamped this very second, which the caches rightly
+        # distrust; step onto an older one.
+        await pilot.press("j")
+        await wait_until(lambda: app.note_view.note is not None and app.note_view.note.title == "Garden Plan")
+        shown = app.note_view.note
+        calls = {"show": 0, "clear": 0}
+        real_show, real_clear = app.note_view.show, app.note_view.clear
+
+        async def counting_show(*args, **kwargs):
+            calls["show"] += 1
+            return await real_show(*args, **kwargs)
+
+        async def counting_clear(*args, **kwargs):
+            calls["clear"] += 1
+            return await real_clear(*args, **kwargs)
+
+        app.note_view.show = counting_show  # type: ignore[method-assign]
+        app.note_view.clear = counting_clear  # type: ignore[method-assign]
+        await app.reload()
+        await pilot.pause()
+        await pilot.pause(0.3)
+        assert app.note_view.note == shown
+        assert calls == {"show": 0, "clear": 0}

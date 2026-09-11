@@ -124,8 +124,12 @@ away from everything in the window: prompt themes, `eza`/`lsd` file icons,
 Neovim statuslines. Bjorn's Material Design glyphs live above U+F0000 and are
 unaffected.
 
-The poll is cheap: two `bearcli list` probes (about 40 ms) and a full reload
-only when something changed.
+The poll is cheap: two `bearcli list` probes run together (about 20 ms) and a
+reload only when something changed. A reload lists metadata only and reads
+the body of just the notes whose modification time moved, so on a couple of
+thousand notes it takes about 0.6 s instead of the 1.8 s a full listing
+with content costs; only the first snapshot pays that. The notes list
+mounts rows in windows of 120 as you move through it.
 
 ### Mouse hover on the wrong row (Tecolot, SwiftTerm)
 

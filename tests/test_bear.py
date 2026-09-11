@@ -115,3 +115,112 @@ def test_resolve_bearcli_falls_back_to_the_app_bundle(monkeypatch, tmp_path):
     monkeypatch.delenv(bear.ENV_COMMAND)
     monkeypatch.setattr(bear, "APP_BUNDLE_COMMANDS", ())
     assert bear.resolve_bearcli() == "bearcli"  # nothing found: PATH name, so the not_found error still names it
+
+
+class RecordingClient:
+    """A BearClient whose bearcli is a dict of canned rows; every call is logged."""
+
+    def __init__(self, rows):
+        from bjorn.bear import BearClient
+
+        self.rows = rows
+        self.calls: list[tuple[str, ...]] = []
+        self.client = BearClient("unused")
+        self.client._run = self._run  # type: ignore[method-assign]
+
+    async def _run(self, *args, parse=True, stdin=None):
+        self.calls.append(args)
+        if args[0] == "cat":
+            row = next(r for r in self.rows if r["id"] == args[1])
+            return {"content": row["content"], "hash": "h"}
+        fields = args[args.index("--fields") + 1].split(",")
+        return [{k: v for k, v in r.items() if k in fields} for r in self.rows]
+
+    def kinds(self) -> list[str]:
+        out = []
+        for call in self.calls:
+            if call[0] == "cat":
+                out.append("cat")
+            else:
+                out.append("list+content" if "content" in call[call.index("--fields") + 1] else "list")
+        return out
+
+
+def _row(i: int, stamp: str = "2026-09-01T00:00:00Z") -> dict:
+    return {"id": f"N{i}", "title": f"Note {i}", "modified": stamp, "location": "notes", "content": f"# Note {i}\n\nbody {i} at {stamp}\n"}
+
+
+async def test_snapshot_reads_bodies_only_for_notes_whose_stamp_moved():
+    rows = [_row(i) for i in range(5)]
+    rec = RecordingClient(rows)
+    first = await rec.client.snapshot()
+    assert rec.kinds() == ["list+content"], "a cold snapshot lists content in one call"
+    assert first.by_id("N3").preview == "body 3 at 2026-09-01T00:00:00Z"
+
+    rec.calls.clear()
+    second = await rec.client.snapshot()
+    assert rec.kinds() == ["list"], "nothing changed: metadata only"
+    assert second.by_id("N3").preview == first.by_id("N3").preview
+
+    rows[3] = _row(3, "2026-09-02T00:00:00Z")
+    rec.calls.clear()
+    third = await rec.client.snapshot()
+    assert sorted(rec.kinds()) == ["cat", "list"], "one stamp moved: one cat"
+    assert rec.calls[-1][1] == "N3"
+    assert third.by_id("N3").preview == "body 3 at 2026-09-02T00:00:00Z"
+    assert third.by_id("N1").preview == first.by_id("N1").preview
+
+
+async def test_snapshot_falls_back_to_one_content_list_when_many_notes_changed():
+    from bjorn.bear import PREVIEW_CAT_LIMIT
+
+    rows = [_row(i) for i in range(PREVIEW_CAT_LIMIT + 5)]
+    rec = RecordingClient(rows)
+    await rec.client.snapshot()
+    for i in range(PREVIEW_CAT_LIMIT + 1):
+        rows[i] = _row(i, "2026-09-03T00:00:00Z")
+    rec.calls.clear()
+    snap = await rec.client.snapshot()
+    assert rec.kinds() == ["list", "list+content"]
+    assert snap.by_id("N0").preview.endswith("2026-09-03T00:00:00Z")
+
+
+async def test_snapshot_forgets_previews_of_notes_that_are_gone():
+    rows = [_row(i) for i in range(3)]
+    rec = RecordingClient(rows)
+    await rec.client.snapshot()
+    del rows[0]
+    await rec.client.snapshot()
+    assert set(rec.client._previews) == {"N1", "N2"}
+
+
+async def test_probe_runs_its_two_commands_together():
+    rec = RecordingClient([_row(0)])
+
+    async def run(*args, parse=True, stdin=None):
+        rec.calls.append(args)
+        if "--count" in args:
+            return {"count": 1}
+        return [{"id": "N0", "modified": "2026-09-01T00:00:00Z"}]
+
+    rec.client._run = run  # type: ignore[method-assign]
+    probe = await rec.client.probe()
+    assert probe.count == 1 and probe.latest_id == "N0"
+    assert len(rec.calls) == 2
+
+
+async def test_a_note_stamped_this_second_is_read_again_every_snapshot():
+    """Stamps have one-second resolution, so a very recent stamp proves nothing."""
+    from datetime import datetime, timezone
+
+    from bjorn.bear import recently_modified
+
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    assert recently_modified(now) and not recently_modified("2026-09-01T00:00:00Z") and not recently_modified(None)
+    rows = [_row(0, "2026-09-01T00:00:00Z"), _row(1, now)]
+    rec = RecordingClient(rows)
+    await rec.client.snapshot()
+    rec.calls.clear()
+    await rec.client.snapshot()
+    assert sorted(rec.kinds()) == ["cat", "list"]
+    assert rec.calls[-1][1] == "N1"

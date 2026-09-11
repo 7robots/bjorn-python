@@ -20,6 +20,13 @@ Single source of truth for planned and deferred work. The active plan lives in
 
 ## Deferred
 
+- Persist the body previews (`~/.cache/bjorn/previews.json`, keyed by note id
+  and modification stamp) so a cold start lists metadata only, about 0.6 s on
+  two thousand notes instead of 1.8 s. The in-memory cache already covers
+  every reload after the first (2026-09-10).
+- Rendering a very long note in full (170 KB, ~5 s) is Textual's `Markdown`
+  mounting one widget per block; the head-then-rest split hides it while
+  browsing. A paged or lazily mounted reader would remove it (2026-09-10).
 - Notes list snippet line (first body line, as Bear shows) — needs content
   for every listed note; cache-backed or via a bearcli field if one appears.
 - Permanent delete from the Trash view: bearcli has no command for it today.

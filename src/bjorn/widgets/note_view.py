@@ -105,6 +105,12 @@ class NoteView(Vertical):
     def truncated(self) -> bool:
         return not self._rendered_full
 
+    def shows(self, note: Note) -> bool:
+        """Is this version of `note` (same id, same modification) already on the
+        page? An error page counts as not shown."""
+        shown = self._note
+        return shown is not None and self._full_text is not None and shown.id == note.id and shown.modified == note.modified
+
     async def clear(self, message: str = "") -> None:
         self._note = None
         self._full_text = None

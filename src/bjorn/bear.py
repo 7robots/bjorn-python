@@ -31,7 +31,16 @@ APP_BUNDLE_COMMANDS = (
 )
 
 #: Every metadata field `list` can return. Content is fetched separately.
-LIST_FIELDS = "id,title,locked,tags,length,created,modified,pins,location,todos,done,attachments,content"
+LIST_FIELDS = "id,title,locked,tags,length,created,modified,pins,location,todos,done,attachments"
+#: When more notes than this need a fresh preview, one `list` with content is
+#: cheaper than a `cat` apiece.
+PREVIEW_CAT_LIMIT = 24
+#: How many `cat` processes run at once while previews are refreshed.
+PREVIEW_CAT_CONCURRENCY = 6
+#: bearcli stamps `modified` to the second, so a note edited twice within one
+#: second keeps its stamp. Anything modified this recently is never trusted
+#: from a stamp-keyed cache.
+RECENT_SECONDS = 2.0
 
 #: The stderr line bearcli prints when `--base` no longer matches.
 _STALE_TEXT = "has changed since last read"
@@ -109,6 +118,16 @@ def _parse_time(value: Any) -> datetime | None:
         return None
 
 
+def recently_modified(when: datetime | str | None, now: datetime | None = None) -> bool:
+    """Was `when` within RECENT_SECONDS of now? The stamp may still move."""
+    if isinstance(when, str):
+        when = _parse_time(when)
+    if when is None:
+        return False
+    now = now or datetime.now(timezone.utc)
+    return (now - when).total_seconds() < RECENT_SECONDS
+
+
 def _is_yes(value: Any) -> bool:
     """bearcli's JSON writes `locked` as the strings "yes"/"no"."""
     if isinstance(value, str):
@@ -135,7 +154,9 @@ class Note:
     preview: str = ""
 
     @classmethod
-    def from_row(cls, row: dict[str, Any]) -> "Note":
+    def from_row(cls, row: dict[str, Any], preview_text: str | None = None) -> "Note":
+        """A note from a `list` row; the preview comes from the row's content
+        unless `preview_text` supplies one computed earlier."""
         tags = tuple(normalize_tag(str(t)) for t in row.get("tags") or () if str(t).strip())
         pins = tuple(str(p) for p in row.get("pins") or ())
         attachments = row.get("attachments") or ()
@@ -156,7 +177,7 @@ class Note:
             done=int(row.get("done") or 0),
             attachments=len(attachments) if isinstance(attachments, (list, tuple)) else int(attachments or 0),
             locked=_is_yes(row.get("locked")),
-            preview=preview(str(row.get("content") or "")),
+            preview=preview(str(row.get("content") or "")) if preview_text is None else preview_text,
         )
 
     @property
@@ -205,12 +226,12 @@ class Snapshot:
 
     notes: list[Note] = field(default_factory=list)
     taken_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    _index: dict[str, Note] | None = field(default=None, repr=False, compare=False)
 
     def by_id(self, note_id: str) -> Note | None:
-        for note in self.notes:
-            if note.id == note_id:
-                return note
-        return None
+        if self._index is None or len(self._index) != len(self.notes):
+            self._index = {note.id: note for note in self.notes}
+        return self._index.get(note_id)
 
     def in_location(self, location: Location) -> list[Note]:
         return [n for n in self.notes if n.location == location]
@@ -222,6 +243,10 @@ class BearClient:
     def __init__(self, command: str | Sequence[str] = DEFAULT_COMMAND) -> None:
         self.command: tuple[str, ...] = (command,) if isinstance(command, str) else tuple(command)
         self._write_lock = asyncio.Lock()
+        #: note id -> (modification stamp, preview). Bodies make up nine tenths
+        #: of a `list` with content, so a snapshot lists metadata only and
+        #: fetches bodies just for the notes whose stamp moved.
+        self._previews: dict[str, tuple[str, str]] = {}
 
     async def _run(self, *args: str, parse: bool = True, stdin: str | None = None) -> Any:
         try:
@@ -268,15 +293,69 @@ class BearClient:
     # -- reads ---------------------------------------------------------------
 
     async def snapshot(self) -> Snapshot:
-        rows = await self._run("list", "--location", "all", "--format", "json", "--fields", LIST_FIELDS)
-        return Snapshot(notes=[Note.from_row(r) for r in rows or []])
+        """Every note's metadata, with a body preview each.
+
+        The first call lists content too and remembers every preview. Later
+        calls list metadata alone (a third of the time on two thousand notes)
+        and read the body only of notes whose modification stamp changed: a
+        `cat` each for a few, one content-bearing `list` for many.
+        """
+        rows: list[dict[str, Any]] = []
+        stale: list[dict[str, Any]] = []
+        previews: dict[str, str] = {}
+        if self._previews:
+            rows = await self._run("list", "--location", "all", "--format", "json", "--fields", LIST_FIELDS) or []
+            for row in rows:
+                known = self._preview_of(row)
+                if known is None:
+                    stale.append(row)
+                else:
+                    previews[str(row.get("id") or "")] = known
+        if not self._previews or len(stale) > PREVIEW_CAT_LIMIT:
+            rows = await self._run("list", "--location", "all", "--format", "json", "--fields", LIST_FIELDS + ",content") or []
+            for row in rows:
+                previews[str(row.get("id") or "")] = self._remember_preview(row, preview(str(row.get("content") or "")))
+        elif stale:
+            semaphore = asyncio.Semaphore(PREVIEW_CAT_CONCURRENCY)
+
+            async def read(row: dict[str, Any]) -> None:
+                async with semaphore:
+                    try:
+                        body = (await self.cat(str(row.get("id") or ""))).content
+                    except BearError:
+                        body = ""  # locked, or gone since the list
+                previews[str(row.get("id") or "")] = self._remember_preview(row, preview(body))
+
+            await asyncio.gather(*(read(r) for r in stale))
+        notes = [Note.from_row(r, previews.get(str(r.get("id") or ""), "")) for r in rows]
+        live = {n.id for n in notes}
+        self._previews = {k: v for k, v in self._previews.items() if k in live}
+        return Snapshot(notes=notes)
+
+    @staticmethod
+    def _stamp(row: dict[str, Any]) -> str:
+        return str(row.get("modified") or "")
+
+    def _preview_of(self, row: dict[str, Any]) -> str | None:
+        stamp = self._stamp(row)
+        if recently_modified(stamp):
+            return None
+        cached = self._previews.get(str(row.get("id") or ""))
+        return cached[1] if cached is not None and cached[0] == stamp else None
+
+    def _remember_preview(self, row: dict[str, Any], text: str) -> str:
+        self._previews[str(row.get("id") or "")] = (self._stamp(row), text)
+        return text
 
     async def probe(self) -> Probe:
-        """~40 ms: enough to know whether a full `snapshot` is worth taking."""
-        count_rows = await self._run("list", "--location", "all", "--count", "--format", "json")
-        latest = await self._run(
-            "list", "--location", "all", "--sort", "modified:desc", "-n", "1",
-            "--format", "json", "--fields", "id,modified",
+        """Two ~20 ms bearcli calls, run together: enough to know whether a
+        full `snapshot` is worth taking."""
+        count_rows, latest = await asyncio.gather(
+            self._run("list", "--location", "all", "--count", "--format", "json"),
+            self._run(
+                "list", "--location", "all", "--sort", "modified:desc", "-n", "1",
+                "--format", "json", "--fields", "id,modified",
+            ),
         )
         count = _count_from(count_rows)
         row = (latest or [{}])[0] if isinstance(latest, list) else {}

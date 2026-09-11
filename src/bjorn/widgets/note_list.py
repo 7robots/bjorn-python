@@ -8,7 +8,7 @@ from rich.text import Text
 from textual.app import ComposeResult
 from textual.containers import Vertical
 from textual.message import Message
-from textual.widgets import Input, Label, ListItem, ListView, Static
+from textual.widgets import Input, ListItem, ListView, Static
 
 from ..bear import Note
 
@@ -32,54 +32,59 @@ def relative_date(when: datetime | None, now: datetime | None = None) -> str:
     return local.strftime("%Y-%m-%d")
 
 
-class PreviewText(Static):
-    """Two rows under the title: the date and counters, then the body preview
-    flowing on, wrapped to the row width and cut with an ellipsis."""
-
-    ROWS = 2
-
-    def __init__(self, lead: Text, body: str) -> None:
-        super().__init__()
-        self.lead = lead
-        self.body = body
-
-    def render(self) -> Text:
-        width = self.size.width
-        if width <= 0:
-            return Text("")
-        text = self.lead.copy()
-        if self.body:
-            if text.plain:
-                text.append("  ")
-            text.append(self.body, "dim")
-        lines = text.wrap(self.app.console, width, overflow="ellipsis", no_wrap=False)
-        clipped = list(lines[: self.ROWS])
-        if len(lines) > self.ROWS and clipped:
-            last = clipped[-1]
-            last.rstrip()
-            last.truncate(width - 1)
-            last.append("…", "dim")
-        return Text("\n").join(clipped)
-
-
 class NoteItem(ListItem):
+    """One note: the title, then two rows of date, counters and body preview.
+
+    The item draws itself instead of composing child widgets: mounting is what
+    a list rebuild costs, and one widget per note mounts about four times as
+    fast as a ListItem holding a Label and a Static.
+    """
+
+    PREVIEW_ROWS = 2
+
     def __init__(self, note: Note) -> None:
         super().__init__()
         self.note = note
 
-    def compose(self) -> ComposeResult:
+    def render(self) -> Text:
+        width = self.content_size.width or self.size.width
+        if width <= 0:
+            return Text("")
         note = self.note
         title = Text()
         if note.pinned:
             title.append("📌 ", "yellow")
         title.append(note.title, "bold")
+        title.truncate(width, overflow="ellipsis")
         lead = Text(relative_date(note.modified), "dim")
         if note.todos:
             lead.append(f"  ☐ {note.todos}", "dim")
         if note.locked:
             lead.append("  🔒", "dim")
-        yield Label(title, classes="note-title")
-        yield PreviewText(lead, note.preview)
+        return Text("\n").join([title, *self.preview_lines(lead, note.preview, width)])
+
+    def preview_lines(self, lead: Text, body: str, width: int) -> list[Text]:
+        """`lead` then `body` flowing on, wrapped to `width` and cut to
+        PREVIEW_ROWS rows with an ellipsis."""
+        text = lead.copy()
+        if body:
+            if text.plain:
+                text.append("  ")
+            text.append(body, "dim")
+        lines = text.wrap(self.app.console, width, overflow="ellipsis", no_wrap=False)
+        clipped = list(lines[: self.PREVIEW_ROWS])
+        if len(lines) > self.PREVIEW_ROWS and clipped:
+            last = clipped[-1]
+            last.rstrip()
+            last.truncate(width - 1)
+            last.append("…", "dim")
+        return clipped
+
+    def preview_text(self) -> str:
+        """The two preview rows as plain text, for tests."""
+        width = self.content_size.width or self.size.width or 80
+        note = self.note
+        return "\n".join(line.plain for line in self.preview_lines(Text(relative_date(note.modified)), note.preview, width))
 
 
 class NotesListView(ListView):
@@ -92,9 +97,17 @@ class NotesListView(ListView):
             super().__init__()
             self.index = index
 
+    class NearEnd(Message):
+        """The cursor or the scroll position is close to the last mounted item."""
+
     def action_select_cursor(self) -> None:
         if self.index is not None:
             self.post_message(self.Opened(self.index))
+
+    def watch_scroll_y(self, old_value: float, new_value: float) -> None:
+        super().watch_scroll_y(old_value, new_value)
+        if new_value >= self.max_scroll_y - self.size.height:
+            self.post_message(self.NearEnd())
 
 
 class NoteList(Vertical):
@@ -133,13 +146,6 @@ class NoteList(Vertical):
         height: 4;
         border-bottom: solid $panel-lighten-2;
     }
-    NoteList > #notes > ListItem .note-title {
-        width: 1fr;
-    }
-    NoteList > #notes > ListItem PreviewText {
-        width: 1fr;
-        height: 2;
-    }
     NoteList > #empty {
         display: none;
         padding: 1 2;
@@ -170,9 +176,15 @@ class NoteList(Vertical):
     class SearchCleared(Message):
         pass
 
+    #: How many rows are mounted up front, and how many more each time the
+    #: cursor or the scrollbar nears the last one. Mounting is the cost of a
+    #: rebuild, so a long list mounts only its head and grows as it is read.
+    WINDOW = 120
+
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self._notes: list[Note] = []
+        self._mounted = 0
 
     def compose(self) -> ComposeResult:
         yield Static("NOTES", id="notes-header")
@@ -192,6 +204,14 @@ class NoteList(Vertical):
     def notes(self) -> list[Note]:
         return list(self._notes)
 
+    def __len__(self) -> int:
+        return len(self._notes)
+
+    @property
+    def mounted(self) -> int:
+        """How many of the notes have a row in the list so far."""
+        return self._mounted
+
     def set_header(self, text: str) -> None:
         self.query_one("#notes-header", Static).update(text)
 
@@ -200,12 +220,6 @@ class NoteList(Vertical):
         self._notes = list(notes)
         lv = self.list_view
         previous = lv.index
-        await lv.clear()
-        await lv.extend([NoteItem(n) for n in self._notes])
-        self.query_one("#empty", Static).set_class(not self._notes, "visible")
-        if not self._notes:
-            self.post_message(self.Highlighted(None))
-            return
         target = 0
         if keep_id is not None:
             for i, n in enumerate(self._notes):
@@ -213,11 +227,31 @@ class NoteList(Vertical):
                     target = i
                     break
             else:
-                target = min(previous or 0, len(self._notes) - 1)
+                target = min(previous or 0, len(self._notes) - 1) if self._notes else 0
+        await lv.clear()
+        self._mounted = 0
+        self.query_one("#empty", Static).set_class(not self._notes, "visible")
+        if not self._notes:
+            self.post_message(self.Highlighted(None))
+            return
+        await self._mount_through(target)
         lv.index = target
         # Setting the same index does not re-emit Highlighted; the caller needs
         # the current note either way.
         self.post_message(self.Highlighted(self._notes[target]))
+
+    async def _mount_through(self, index: int) -> None:
+        """Mount rows so that `index` has one, in whole windows."""
+        wanted = min(len(self._notes), max(self.WINDOW, index + 1 + self.WINDOW // 2))
+        wanted = min(len(self._notes), max(wanted, self._mounted))
+        if wanted > self._mounted:
+            await self.list_view.extend([NoteItem(n) for n in self._notes[self._mounted:wanted]])
+            self._mounted = wanted
+
+    async def extend_window(self) -> None:
+        """Mount the next window of rows, if any are left."""
+        if self._mounted < len(self._notes):
+            await self._mount_through(self._mounted + self.WINDOW - 1)
 
     def current(self) -> Note | None:
         lv = self.list_view
@@ -225,9 +259,10 @@ class NoteList(Vertical):
             return None
         return self._notes[lv.index]
 
-    def select_id(self, note_id: str) -> bool:
+    async def select_id(self, note_id: str) -> bool:
         for i, n in enumerate(self._notes):
             if n.id == note_id:
+                await self._mount_through(i)
                 self.list_view.index = i
                 return True
         return False
@@ -263,11 +298,22 @@ class NoteList(Vertical):
 
     # -- list events -------------------------------------------------------------
 
-    def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
+    async def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
         if event.list_view is not self.list_view:
             return
         item = event.item
+        if item is None and self._notes:
+            # A rebuild empties the ListView before refilling it; the note that
+            # ends up highlighted follows in its own message, so the reader is
+            # not blanked in between.
+            return
         self.post_message(self.Highlighted(item.note if isinstance(item, NoteItem) else None))
+        index = self.list_view.index
+        if index is not None and index >= self._mounted - self.WINDOW // 4:
+            await self.extend_window()
+
+    async def on_notes_list_view_near_end(self, event: NotesListView.NearEnd) -> None:
+        await self.extend_window()
 
     def on_notes_list_view_opened(self, event: NotesListView.Opened) -> None:
         if 0 <= event.index < len(self._notes):
