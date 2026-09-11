@@ -86,8 +86,9 @@ def test_outline_keys_the_ground_out_and_is_cached_by_source(tmp_path):
         assert result.mode == "RGBA" and result.size == (400, 300)
         alpha = result.getchannel("A")
         assert alpha.getpixel((5, 5)) == 0 and alpha.getpixel((200, 100)) == 0  # the ground is clear
-        assert alpha.getpixel((200, 150)) == 255
-        assert 0 < alpha.getpixel((200, 151)) < 255
+        top = round(255 * wallpaper.OUTLINE_OPACITY)
+        assert alpha.getpixel((200, 150)) == top  # the brightest line is only as opaque as the mute allows
+        assert 0 < alpha.getpixel((200, 151)) < top
         assert result.getpixel((200, 150))[:3] == wallpaper.OUTLINE_INK  # one ink, whatever the source colour
     assert wallpaper.styled_image(source, "outline", env) == out  # cached
     assert wallpaper.styled_image(source, "colour", env) == source

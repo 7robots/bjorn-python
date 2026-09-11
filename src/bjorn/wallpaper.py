@@ -23,8 +23,10 @@ DEFAULT_IMAGE = Path(__file__).with_name("data") / "astro-bear.png"
 GRAPHICS_TERMINALS = frozenset({"ghostty", "kitty", "wezterm", "iterm.app"})
 
 STYLES = ("outline", "colour")
-#: The ink the outline is drawn in; alpha comes from each pixel's brightness.
-OUTLINE_INK = (150, 158, 176)
+#: The ink the outline is drawn in; alpha comes from each pixel's brightness,
+#: scaled by OUTLINE_OPACITY so the drawing stays quiet behind the count.
+OUTLINE_INK = (128, 134, 150)
+OUTLINE_OPACITY = 0.55
 
 #: The image widget class to use, set by `probe()`; None means "no bitmaps".
 _image_widget: type | None = None
@@ -48,7 +50,8 @@ def outline_path(source: Path, environ: dict[str, str] | None = None) -> Path:
     """Where the outline derived from `source` is cached; the name carries the
     source's size and mtime so a replaced picture is redrawn."""
     stat = source.stat()
-    return cache_dir(environ) / f"{source.stem}-outline-{stat.st_size}-{int(stat.st_mtime)}.png"
+    ink = "%02x%02x%02x%02x" % (*OUTLINE_INK, round(OUTLINE_OPACITY * 255))
+    return cache_dir(environ) / f"{source.stem}-outline-{ink}-{stat.st_size}-{int(stat.st_mtime)}.png"
 
 
 def make_outline(source: Path, dest: Path) -> Path:
@@ -62,7 +65,8 @@ def make_outline(source: Path, dest: Path) -> Path:
     ground = max(range(256), key=lambda level: histogram[level])
     low, high = min(ground + 12, 254), 200
     span = max(high - low, 1)
-    alpha = gray.point(lambda v: 0 if v <= low else 255 if v >= high else (v - low) * 255 // span)
+    top = round(255 * OUTLINE_OPACITY)
+    alpha = gray.point(lambda v: 0 if v <= low else top if v >= high else (v - low) * top // span)
     out = Image.new("RGBA", gray.size, OUTLINE_INK + (0,))
     out.putalpha(alpha)
     dest.parent.mkdir(parents=True, exist_ok=True)

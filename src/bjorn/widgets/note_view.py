@@ -120,8 +120,10 @@ class NoteView(Vertical):
         color: $text-muted;
     }
     NoteView #note-picture {
-        width: 100%;
-        height: 1fr;
+        /* both auto: textual-image fits the pane and keeps the aspect ratio;
+           a fixed box would stretch the drawing to fill it */
+        width: auto;
+        height: auto;
         margin: 1 2 0 2;
     }
     NoteView #note-count {
