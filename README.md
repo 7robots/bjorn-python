@@ -32,16 +32,17 @@ bjorn --demo          # sample notes through a built-in fake bearcli, no Bear ne
 
 | Key | Action | Key | Action |
 |---|---|---|---|
-| `tab` / `shift+tab` | cycle panes | `/` | search (Bear syntax) |
-| `j` `k` `↑` `↓` | move within a pane; in the sidebar the cursor runs from the views into the tags | `esc` | clear the search |
-| `enter` / click | read the highlighted note / highlight it | `1`–`7` | Notes, Untagged, Todo, Today, Pinned, Archive, Trash |
-| `n` | new note (title, tags), then edit | `d` | move the note to the trash |
+| `tab` / `shift+tab` | cycle panes | `/` | search (Bear syntax); `enter` runs it |
+| `j` `k` `↑` `↓` | move within a pane; in the sidebar the cursor runs from the views into the tags; in the reader they scroll | `esc` | clear the search |
+| `enter` | move into the reader for the highlighted note (clicking a note highlights it) | `1`–`7` | Notes, Untagged, Todo, Today, Pinned, Archive, Trash |
+| `n` | new note (title, tags), then edit | `d` | move the note to the trash, after a confirm |
 | `e` | edit in `$EDITOR` | `u` | restore from Trash or Archive |
-| `p` | toggle the global pin | `x` | export: Markdown, HTML, text, RTF, TextBundle |
-| `b` | open in Bear.app | `w` | set the workspace; again to leave it |
-| `f` / `F` | fold / unfold a tag subtree / all tags | `W` | clear the workspace |
-| `t` | triage the workspace's open todos | `c` / click `▮▮▮` | hide the tag column, then the note column, then show all |
-| `r` | refresh now | `?` `q` | help, quit |
+| `p` | toggle the global pin | `x` | export: Markdown, HTML, text, RTF, TextBundle (`←` `→` or `h` `l` pick, `enter` confirms) |
+| `b` | open in Bear.app | `w` | make the highlighted tag the workspace; again on it to leave |
+| `f` | fold / unfold the highlighted tag's subtree | `W` | clear the workspace |
+| `F` | fold every tag, or unfold them all when all are folded | `c` / click `▮▮▮` | hide the tag column, then the note column too, then show all three |
+| `t` | triage the workspace's open todos | `r` | refresh now |
+| `?` | help (`esc` `q` `?` close it) | `q` | quit |
 
 The **workspace** is a tag subtree that scopes the whole app: the tag tree
 shows only it, the smart views count only inside it, search results are
@@ -57,7 +58,7 @@ inside a tag. **Today** means modified today, local time.
 the workspace (all notes when none is set), grouped by note with the section
 each item sits under. `space` marks rows, `x` ticks the marked (or highlighted)
 items in Bear through `bearcli edit`, `enter` jumps to the note, `b` opens it
-in Bear.app at that section, `/` filters, `r` reloads, `esc` closes.
+in Bear.app at that section, `/` filters, `r` reloads, `esc` or `q` closes.
 
 ![Triage: open todos grouped by note, with Reminders status](docs/screenshot-triage.svg)
 

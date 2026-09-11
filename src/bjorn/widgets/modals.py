@@ -259,7 +259,7 @@ Three columns: smart views and tags · notes · the rendered note.
 | `d` | move the note to the trash |
 | `u` | restore from Trash or Archive |
 | `p` | toggle the global pin |
-| `x` | export the note: Markdown, HTML, plain text, RTF or TextBundle (`export_format` picks the default) |
+| `x` | export the note: Markdown, HTML, plain text, RTF or TextBundle (`←` `→` pick, `export_format` sets the default) |
 | `b` | open the note in Bear.app |
 | `w` | make the highlighted tag the workspace; again to leave it (`W` also clears) |
 | `f` | fold / unfold the highlighted tag's subtree |
@@ -271,7 +271,7 @@ Three columns: smart views and tags · notes · the rendered note.
 
 In triage: `space` marks, `x` ticks the marked (or highlighted) todos in Bear,
 `enter` goes to the note, `b` opens it in Bear at the section, `/` filters,
-`r` reloads, `esc` closes. With `[reminders] enabled = true`, `a` adds marked
+`r` reloads, `esc` or `q` closes. With `[reminders] enabled = true`, `a` adds marked
 todos to Apple Reminders and rows show ⏰ (added) or ✓ (completed there).
 
 Edits are hash-guarded: if the note changed in Bear while you were in the
