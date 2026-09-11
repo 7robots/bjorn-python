@@ -80,7 +80,9 @@ Status: [x] done 2026-09-11 (13 passed with test_config.py; full suite 119)
 Intent: `.rtf` via `textutil` from a temporary HTML file, `.rtfd` when images
 are present; a clear notice when `textutil` is missing (non-macOS).
 Verify: `uv run pytest tests/test_export.py -k rtf` (skipped where textutil is absent)
-Status: [ ] pending
+Status: [x] done 2026-09-11 (3 passed; full suite 122). textutil drops
+images from flat RTF and renames them inside RTFD, so the package is used
+whenever the note has attachments; the HTML fed to it carries data: URIs.
 
 ### Phase 13 — TextBundle
 Intent: `.textbundle` folder with `info.json`, `text.md` (links rewritten to

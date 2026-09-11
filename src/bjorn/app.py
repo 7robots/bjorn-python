@@ -22,7 +22,7 @@ from textual.widgets import Footer, Input, ListView, Tree
 
 from .bear import BearClient, BearError, Note, NoteContent, Probe, Snapshot, display_tag, normalize_tag, recently_modified, resolve_bearcli
 from .config import Config, editor_available, resolve_editor
-from .export import FORMATS, default_export_path, export_note, format_by_id, safe_filename
+from .export import FORMATS, ExportError, default_export_path, export_note, extension_for, format_by_id, safe_filename
 from .icons import IconSet
 from .model import Selection, View, duplicate_titles, select_notes
 from .reminders import RemctlClient, RemctlError, join as join_reminders, remctl_found, resolve_remctl
@@ -802,7 +802,7 @@ class BjornApp(App[None]):
         if not chosen:
             return
         fmt = format_by_id(chosen)
-        default = default_export_path(self.config.export_dir, note.title, fmt.ext)
+        default = default_export_path(self.config.export_dir, note.title, extension_for(fmt, bool(note.attachments)))
         target = await self.push_screen_wait(
             TextPrompt(f"Export as {fmt.label} to", prefill=str(default), hint="enter to write · esc to cancel")
         )
@@ -812,7 +812,7 @@ class BjornApp(App[None]):
             content = await self._fetch_content(note)
             images = await self._attachment_bytes(note) if fmt.needs_attachments else {}
             written = await asyncio.to_thread(export_note, fmt, content.content, note.title, Path(target), images)
-        except (BearError, OSError, ValueError) as exc:
+        except (BearError, ExportError, OSError, ValueError) as exc:
             self.notify(str(exc), title="Export failed", severity="error", timeout=10)
             return
         self.notify(f"Exported to {written}", timeout=5)

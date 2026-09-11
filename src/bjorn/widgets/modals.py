@@ -259,7 +259,7 @@ Three columns: smart views and tags · notes · the rendered note.
 | `d` | move the note to the trash |
 | `u` | restore from Trash or Archive |
 | `p` | toggle the global pin |
-| `x` | export the note: Markdown, HTML or plain text (`export_format` picks the default) |
+| `x` | export the note: Markdown, HTML, plain text or RTF (`export_format` picks the default) |
 | `b` | open the note in Bear.app |
 | `w` | make the highlighted tag the workspace; again to leave it (`W` also clears) |
 | `f` | fold / unfold the highlighted tag's subtree |

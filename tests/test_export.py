@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
+
+import pytest
 
 from bjorn.export import default_export_path, safe_filename, unique_path
 from helpers import loaded, wait_until
@@ -111,3 +114,39 @@ def test_unknown_export_format_falls_back_to_markdown():
     from bjorn.export import format_by_id
 
     assert format_by_id("docx").id == "md" and format_by_id("html").ext == "html"
+
+
+textutil_present = pytest.mark.skipif(shutil.which("textutil") is None, reason="textutil ships with macOS")
+
+
+@textutil_present
+async def test_r_exports_rtf_and_rtfd_when_the_note_has_images(make_app, config):
+    app = make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        await loaded(app, pilot)
+        written = await _export_via_picker(app, pilot, "r")
+        assert written == config.export_dir / "Sprint Planning.rtf"
+        rtf = written.read_text(errors="replace")
+        assert rtf.startswith("{\\rtf1") and "release notes" in rtf and "Sprint Planning" in rtf
+        await pilot.press("j")  # Garden Plan carries the seeded image
+        await wait_until(lambda: app.note_view.note is not None and app.note_view.note.id == "NOTE-GARDEN")
+        package = await _export_via_picker(app, pilot, "r")
+        assert package == config.export_dir / "Garden Plan.rtfd" and package.is_dir()
+        names = sorted(p.name for p in package.iterdir())
+        assert "TXT.rtf" in names and any(n.endswith(".png") for n in names), names
+
+
+def test_rtf_export_reports_a_missing_textutil(monkeypatch, tmp_path):
+    from bjorn.export import ExportError, export_note, format_by_id
+
+    monkeypatch.setattr(shutil, "which", lambda name: None)
+    with pytest.raises(ExportError, match="textutil"):
+        export_note(format_by_id("rtf"), "# T\n", "T", tmp_path / "t.rtf")
+
+
+def test_extension_for_switches_rtf_to_a_package_only_with_attachments():
+    from bjorn.export import extension_for, format_by_id
+
+    assert extension_for(format_by_id("rtf"), False) == "rtf"
+    assert extension_for(format_by_id("rtf"), True) == "rtfd"
+    assert extension_for(format_by_id("html"), True) == "html"

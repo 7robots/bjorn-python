@@ -8,6 +8,9 @@ bytes and write files. Fetching content and attachments is the app's job.
 from __future__ import annotations
 
 import re
+import shutil
+import subprocess
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -15,6 +18,10 @@ from . import render_html
 from .render import to_text
 
 _UNSAFE_RE = re.compile(r'[<>:"/\\|?*\x00-\x1f]+')
+
+
+class ExportError(Exception):
+    """A writer could not produce its file (a converter missing or failing)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,6 +38,7 @@ FORMATS: tuple[Format, ...] = (
     Format("md", "Markdown", "m", "md"),
     Format("html", "HTML", "h", "html", needs_attachments=True),
     Format("txt", "Text", "t", "txt"),
+    Format("rtf", "RTF", "r", "rtf", needs_attachments=True),
 )
 DEFAULT_FORMAT = "md"
 
@@ -40,6 +48,14 @@ def format_by_id(format_id: str) -> Format:
         if fmt.id == format_id:
             return fmt
     return format_by_id(DEFAULT_FORMAT)
+
+
+def extension_for(fmt: Format, has_attachments: bool) -> str:
+    """RTF with images is an `.rtfd` package so the pictures travel; textutil
+    drops them from a flat `.rtf`."""
+    if fmt.id == "rtf" and has_attachments:
+        return "rtfd"
+    return fmt.ext
 
 
 def safe_filename(title: str, fallback: str = "note") -> str:
@@ -93,6 +109,28 @@ def export_html(content: str, title: str, destination: Path, images: dict[str, b
     return destination
 
 
+def export_rtf(content: str, title: str, destination: Path, images: dict[str, bytes] | None = None) -> Path:
+    """RTF through macOS `textutil`, from the HTML rendering. A destination
+    ending in `.rtfd` becomes a package with the images inside (textutil
+    names them itself); a flat `.rtf` carries text and tables only."""
+    if shutil.which("textutil") is None:
+        raise ExportError("RTF export needs textutil, which ships with macOS.")
+    destination = _prepare(destination)
+    kind = "rtfd" if destination.suffix.lower() == ".rtfd" else "rtf"
+    with tempfile.TemporaryDirectory(prefix="bjorn-rtf-") as tmp:
+        source = Path(tmp) / "note.html"
+        source.write_text(render_html.render(content, title, images=images if kind == "rtfd" else None), encoding="utf-8")
+        result = subprocess.run(
+            ["textutil", "-convert", kind, str(source), "-output", str(destination)],
+            capture_output=True, text=True, check=False,
+        )
+    # textutil exits 0 even when it fails; the output is the only reliable signal.
+    if result.returncode != 0 or not destination.exists():
+        detail = (result.stderr or result.stdout).strip().splitlines()
+        raise ExportError(detail[0] if detail else "textutil wrote nothing")
+    return destination
+
+
 def export_note(fmt: Format, content: str, title: str, destination: Path, images: dict[str, bytes] | None = None) -> Path:
     """Write `content` as `fmt` to `destination`; returns what was written."""
     if fmt.id == "md":
@@ -101,4 +139,6 @@ def export_note(fmt: Format, content: str, title: str, destination: Path, images
         return export_text(content, destination)
     if fmt.id == "html":
         return export_html(content, title, destination, images)
+    if fmt.id == "rtf":
+        return export_rtf(content, title, destination, images)
     raise ValueError(f"unknown export format {fmt.id}")
