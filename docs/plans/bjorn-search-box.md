@@ -56,7 +56,7 @@ Verify: `uv run pytest tests/test_search_box.py -q` covering: `@to` → `@todo`,
 `#home/garden`, `!#ho`, `#*/g` → `#*/garden`, multi-word tag closes with `#`,
 last-token-only (`bulbs @to` → `bulbs @todo`), plain word → None, unknown
 prefix → None, case-insensitive, workspace tags first.
-Status: [ ]
+Status: [x] done 2026-09-11 (12 passed)
 
 ### Phase 20 — Wire the box
 Intent: `NoteList` builds the suggester with a tag callable from the app's
