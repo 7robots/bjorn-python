@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from rich.cells import cell_len
+from rich.style import Style
 from rich.text import Text
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
@@ -11,10 +13,16 @@ from textual.widgets.tree import TreeNode
 
 from ..bear import Snapshot, display_tag
 from ..icons import IconSet
-from ..model import TagNode, View, build_tag_tree
+from ..model import TagNode, View, build_tag_tree, view_counts
 
 
 class ViewItem(ListItem):
+    def __init__(self, view: View, count: int, icon: str = "") -> None:
+        super().__init__(id=f"view-{view.value}")
+        self.view = view
+        self.count = count
+        self.icon = icon
+
     DEFAULT_CSS = """
     ViewItem > Horizontal {
         height: 1;
@@ -22,21 +30,63 @@ class ViewItem(ListItem):
     ViewItem > Horizontal > .view-label {
         width: 1fr;
     }
+    ViewItem > Horizontal > .view-count {
+        width: 5;
+        text-align: right;
+        text-style: dim;
+    }
     ViewItem > Horizontal > .view-hotkey {
-        width: 1;
+        width: 3;
+        text-align: right;
         color: $text-muted;
     }
     """
 
-    def __init__(self, view: View, icon: str = "") -> None:
-        super().__init__(id=f"view-{view.value}")
-        self.view = view
-        self.icon = icon
+    def _text(self) -> Text:
+        return Text.assemble(self.icon, self.view.label)
 
     def compose(self) -> ComposeResult:
         with Horizontal():
-            yield Label(Text.assemble(self.icon, self.view.label), id=f"label-{self.view.value}", classes="view-label")
+            yield Label(self._text(), id=f"label-{self.view.value}", classes="view-label")
+            yield Label(str(self.count), classes="view-count")
             yield Label(self.view.hotkey, classes="view-hotkey")
+
+    def update_count(self, count: int) -> None:
+        self.count = count
+        self.query_one(".view-count", Label).update(str(count))
+
+
+class TagTree(Tree[str]):
+    """The tag tree with every note count flush against the right edge.
+
+    Textual caches each rendered line with the widget width in the key, so
+    padding the label out to the width here re-renders correctly on resize.
+    The padded label is the row, so the cursor and hover highlight span it
+    like the smart-view rows above. A tag too long to fit keeps one space
+    before its count and the tree scrolls sideways as before.
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.counts: dict[str, int] = {}
+
+    def render_label(self, node: TreeNode[str], base_style: Style, style: Style) -> Text:
+        text = super().render_label(node, base_style, style)
+        count = self.counts.get(node.data or "")
+        if count is None:
+            return text
+        depth = 0
+        parent = node.parent
+        while parent is not None:
+            depth += 1
+            parent = parent.parent
+        if not self.show_root:
+            depth -= 1  # the hidden root draws no guide
+        count_text = str(count)
+        pad = self.size.width - depth * self.guide_depth - text.cell_len - cell_len(count_text)
+        text.append(" " * max(pad, 1), style)
+        text.append(count_text, style + Style(dim=True))
+        return text
 
 
 class Sidebar(Vertical):
@@ -97,16 +147,15 @@ class Sidebar(Vertical):
         self.icons = icons or IconSet("none")
         self._workspace = ""
         self._suppress = False
-        self._quiet_view: View | None = None
         #: Fold state by tag path, remembered across rebuilds (reloads, entering
         #: and leaving a workspace) so a tree the user folded stays folded.
         self._expanded: dict[str, bool] = {}
 
     def compose(self) -> ComposeResult:
         yield Static("BJORN", id="sidebar-header")
-        yield ListView(*[ViewItem(v, self.icons.for_view(v.value)) for v in View], id="views")
+        yield ListView(*[ViewItem(v, 0, self.icons.for_view(v.value)) for v in View], id="views")
         yield Static("TAGS", id="tags-label")
-        tree: Tree[str] = Tree("Tags", id="tags")
+        tree = TagTree("Tags", id="tags")
         tree.show_root = False
         tree.guide_depth = 2
         # A click on a tag selects it; only the arrow (or space) toggles the
@@ -119,8 +168,8 @@ class Sidebar(Vertical):
         return self.query_one("#views", ListView)
 
     @property
-    def tree(self) -> Tree:
-        return self.query_one("#tags", Tree)
+    def tree(self) -> TagTree:
+        return self.query_one("#tags", TagTree)
 
     # -- populate --------------------------------------------------------------
 
@@ -134,10 +183,14 @@ class Sidebar(Vertical):
         self._suppress = True
         try:
             self.set_workspace(workspace)
+            counts = view_counts(snapshot, workspace)
+            for item in self.views.query(ViewItem):
+                item.update_count(counts[item.view])
             tree = self.tree
             self._remember_folds()
             root = build_tag_tree(snapshot, workspace)
             tree.clear()
+            tree.counts.clear()
             # Every tag starts folded, as in a fresh Bear sidebar; a workspace
             # is one subtree, so it opens fully.
             self._fill(tree.root, root, expand_depth=0 if not workspace else 99)
@@ -173,6 +226,7 @@ class Sidebar(Vertical):
         for child in node.sorted_children():
             icon = self.icons.for_tag(child.path) if "/" not in child.path else ""
             label = Text.assemble(icon, child.name)
+            self.tree.counts[child.path] = child.count
             if child.children:
                 expand = self._expanded.get(child.path, depth < expand_depth)
                 tn = parent.add(label, data=child.path, expand=expand)
@@ -209,12 +263,7 @@ class Sidebar(Vertical):
         return str(node.data) if node is not None and node.data else ""
 
     def select_view(self, view: View) -> None:
-        """Move the highlight without announcing it: the caller applies the
-        selection itself, and an echoed ViewSelected would re-apply it with no
-        note kept."""
-        if self.views.index != list(View).index(view):
-            self._quiet_view = view
-            self.views.index = list(View).index(view)
+        self.views.index = list(View).index(view)
 
     # -- events ----------------------------------------------------------------
 
@@ -222,9 +271,6 @@ class Sidebar(Vertical):
         if event.list_view is not self.views or self._suppress:
             return
         if isinstance(event.item, ViewItem):
-            if event.item.view == self._quiet_view:
-                self._quiet_view = None
-                return
             self.post_message(self.ViewSelected(event.item.view))
 
     def on_tree_node_highlighted(self, event: Tree.NodeHighlighted) -> None:

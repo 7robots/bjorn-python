@@ -19,11 +19,8 @@ async def test_w_scopes_and_W_clears(make_app):
         assert str(app.sidebar.query_one("#sidebar-header").render()) == "WORKSPACE #home"
         roots = [str(n.data) for n in app.sidebar.tree.root.children]
         assert roots == ["home"]
-        # the empty page counts within the workspace
-        await pilot.press("1")
-        await wait_until(lambda: str(app.note_view.query_one("#note-art").render()).rstrip().endswith("2 notes"))
-        await pilot.press("2")
-        await wait_until(lambda: str(app.note_view.query_one("#note-art").render()).rstrip().endswith("0 notes"))
+        counts = {item.view.value: item.count for item in app.sidebar.views.query("ViewItem")}
+        assert counts["all"] == 2 and counts["untagged"] == 0 and counts["todo"] == 1
         await pilot.press("3")
         await wait_until(lambda: titles(app) == ["Garden Plan"])
         await pilot.press("W")

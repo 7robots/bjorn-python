@@ -86,8 +86,6 @@ async def main(out: Path, triage_out: Path | None) -> None:
                 break
         app.note_list.list_view.focus()
         await pilot.pause(0.8)
-        await pilot.press("j")  # a fresh selection shows the empty page; step onto the first note
-        await pilot.pause(0.3)
         await pilot.press("enter")
         await pilot.pause(0.8)
         app.note_list.list_view.focus()

@@ -174,8 +174,7 @@ class NewNotePrompt(SafeSelectMixin, ModalScreen[tuple[str, str] | None]):
 HELP_TEXT = """\
 # Bjorn
 
-Three columns: smart views and tags · notes · the rendered note. Picking a
-view or tag shows the empty page with its note count; `j` steps onto the first note.
+Three columns: smart views and tags · notes · the rendered note.
 
 | Key | Action |
 |---|---|

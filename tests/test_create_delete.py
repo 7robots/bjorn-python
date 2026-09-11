@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from helpers import first_note, loaded, titles, wait_until
+from helpers import loaded, titles, wait_until
 from test_edit import fake_editor
 
 
@@ -49,7 +49,6 @@ async def test_trash_needs_confirmation_then_restore(make_app, client):
     app = make_app()
     async with app.run_test(size=(120, 40)) as pilot:
         await loaded(app, pilot)
-        await first_note(app, pilot)
         await pilot.press("d")
         await pilot.pause()
         assert type(app.screen).__name__ == "ConfirmScreen"
@@ -62,7 +61,6 @@ async def test_trash_needs_confirmation_then_restore(make_app, client):
         await wait_until(lambda: "Sprint Planning" not in titles(app))
         await pilot.press("7")
         await wait_until(lambda: titles(app) == ["Sprint Planning", "Old Draft"])
-        await first_note(app, pilot)
         await pilot.press("d")
         await pilot.pause()
         assert type(app.screen).__name__ == "BjornScreen"
@@ -80,7 +78,6 @@ async def test_restore_from_archive(make_app, client):
         await loaded(app, pilot)
         await pilot.press("6")
         await wait_until(lambda: titles(app) == ["Finished Project"])
-        await first_note(app, pilot)
         await pilot.press("u")
         await wait_until(lambda: titles(app) == [])
     assert (await client.snapshot()).by_id("NOTE-ARCHIVED").location.value == "notes"

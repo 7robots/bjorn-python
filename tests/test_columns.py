@@ -36,7 +36,7 @@ async def test_hiding_the_focused_pane_moves_focus_and_keeps_keys_working(make_a
         await pilot.pause()
         await pilot.press("c")
         assert app.focused is app.note_list.list_view
-        await pilot.press("j", "j")  # nothing is highlighted on a fresh selection; the first j lands on row one
+        await pilot.press("j")
         await wait_until(lambda: app.note_view.note is not None and app.note_view.note.id == "NOTE-GARDEN")
         await pilot.press("c")
         assert app.focused is app.note_view.scroll_view

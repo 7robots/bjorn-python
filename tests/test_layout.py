@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from rich.cells import cell_len
+
 from bjorn.render import OPEN_BOX
 from bjorn.widgets.note_list import NoteList
 from bjorn.widgets.note_view import NoteView
@@ -10,25 +12,13 @@ from bjorn.widgets.sidebar import Sidebar
 from helpers import loaded, titles, wait_until
 
 
-def empty_page_text(app) -> str:
-    return str(app.note_view.query_one("#note-art").render())
-
-
-async def test_three_columns_load_with_the_empty_page_then_j_renders_the_first_note(make_app):
+async def test_three_columns_load_and_render_first_note(make_app):
     app = make_app()
     async with app.run_test(size=(120, 40)) as pilot:
         await loaded(app, pilot)
         assert app.query_one(Sidebar) and app.query_one(NoteList) and app.query_one(NoteView)
         assert titles(app) == ["Sprint Planning", "Garden Plan", "Reading Queue", "CAD and Design", "Loose Thought"]
-        # As in Bear, a fresh selection highlights no note: the bear and the count instead.
-        await wait_until(lambda: app.note_view.empty)
-        assert app.note_view.note is None and app.note_list.list_view.index is None
-        assert empty_page_text(app).rstrip().endswith("5 notes")
-        assert "(__)" in empty_page_text(app)
-        app.note_list.list_view.focus()
-        await pilot.press("j")
         await wait_until(lambda: app.note_view.note is not None and app.note_view.note.id == "NOTE-PLANNING")
-        assert not app.note_view.empty
         assert str(app.note_view.query_one("#note-header").render()) == "Sprint Planning"
         await pilot.pause(0.2)
         assert OPEN_BOX in app.note_view.markdown.source
@@ -41,7 +31,7 @@ async def test_moving_the_cursor_changes_the_note(make_app):
     async with app.run_test(size=(120, 40)) as pilot:
         await loaded(app, pilot)
         app.note_list.list_view.focus()
-        await pilot.press("j", "j")
+        await pilot.press("j")
         await wait_until(lambda: app.note_view.note is not None and app.note_view.note.id == "NOTE-GARDEN")
         await pilot.press("k")
         await wait_until(lambda: app.note_view.note is not None and app.note_view.note.id == "NOTE-PLANNING")
@@ -62,18 +52,14 @@ async def test_long_note_is_truncated_until_focused(make_app):
         assert "Book 120" in app.note_view.markdown.source
 
 
-async def test_empty_page_counts_match_the_snapshot_per_view(make_app):
+async def test_sidebar_counts_match_the_snapshot(make_app):
     app = make_app()
     async with app.run_test(size=(120, 40)) as pilot:
         await loaded(app, pilot)
-        expected = {"1": "5 notes", "2": "1 note", "3": "2 notes", "4": "1 note", "5": "2 notes", "6": "1 note", "7": "1 note"}
-        for key, count in expected.items():
-            await pilot.press(key)
-            await wait_until(lambda: app.note_view.empty and empty_page_text(app).rstrip().endswith(count))
+        counts = {item.view.value: item.count for item in app.sidebar.views.query("ViewItem")}
+        assert counts == {"all": 5, "untagged": 1, "todo": 2, "today": 1, "pinned": 2, "archive": 1, "trash": 1}
         tags = [str(node.data) for node in app.sidebar.tree.root.children]
         assert tags == ["home", "work"]
-        # the sidebar itself carries no counts any more
-        assert not app.sidebar.query(".view-count")
 
 
 async def test_help_screen_opens_and_closes(make_app):
@@ -125,3 +111,22 @@ async def test_note_rows_show_a_preview_and_no_tags(make_app):
         assert "#" not in rendered
         assert rendered.count("\n") <= 1
 
+
+async def test_tag_counts_sit_flush_right_at_every_depth(make_app):
+    app = make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        await loaded(app, pilot)
+        tree = app.sidebar.tree
+        await pilot.press("F")  # unfold every tag so nested rows render too
+        await pilot.pause()
+        width = tree.size.width
+        rows = 0
+        for line in range(len(tree._tree_lines)):
+            strip = tree._render_line(line, 0, width, tree.rich_style)
+            text = strip.text.rstrip()
+            if not text:
+                continue
+            rows += 1
+            assert cell_len(text) == width, text  # the count is the last cell of the row
+            assert text.split()[-1].isdigit(), text
+        assert rows >= 3 and any(len(l.path) > 1 for l in tree._tree_lines)  # at least one nested tag (paths omit the hidden root)

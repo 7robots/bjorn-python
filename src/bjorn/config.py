@@ -9,9 +9,6 @@ Every key is optional. Example:
     bearcli = "/usr/local/bin/bearcli"   # optional; default searches PATH, then Bear.app
     icon_style = "auto"          # auto | nerd | emoji | lucide | none
     mouse_pixels = true          # false works around SwiftTerm-based terminals (Tecolot)
-    wallpaper = true             # a picture on the empty page where the terminal can draw one
-    empty_image = ""             # your own picture instead of the bundled Astro-Bear
-    empty_image_style = "outline"  # outline (Bear-like line art) | colour
 
     [icons]                      # top-level tag -> Lucide icon name or emoji:<glyph>
     tech = "terminal"
@@ -68,13 +65,6 @@ class Config:
     #: in-band resize. Off for terminals that report pixel geometry and mouse
     #: position in different units (SwiftTerm/Tecolot, 2026-09).
     mouse_pixels: bool = True
-    #: Picture for the empty page in terminals that can draw one: the bundled
-    #: Astro-Bear line art unless `empty_image` names a file; `wallpaper = false`
-    #: keeps the ASCII bear everywhere.
-    empty_image: str = ""
-    wallpaper: bool = True
-    #: "outline" reduces the picture to Bear-like line art; "colour" shows it as is.
-    empty_image_style: str = "outline"
     reminders: RemindersConfig = field(default_factory=RemindersConfig)
     path: Path | None = None
 
@@ -102,10 +92,6 @@ class Config:
         if isinstance(icons, dict):
             cfg.icons = {str(k): str(v) for k, v in icons.items() if isinstance(v, str)}
         cfg.mouse_pixels = bool(data.get("mouse_pixels", True))
-        cfg.empty_image = str(data.get("empty_image", "") or "").strip()
-        cfg.wallpaper = bool(data.get("wallpaper", True))
-        style = str(data.get("empty_image_style", "outline") or "outline").strip().lower()
-        cfg.empty_image_style = "colour" if style in ("colour", "color") else "outline"
         section = data.get("reminders")
         if isinstance(section, dict):
             due = section.get("due", "today")
