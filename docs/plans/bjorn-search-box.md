@@ -74,4 +74,6 @@ Verify: `uv run python tools/gate_search_box.py` opens the box, types `@to`,
 asserts the suggestion, accepts, runs, asserts every listed note has an open
 todo; types `#tec`, asserts a live tag completes; `esc` hides the hint row;
 then the full suite `uv run pytest -q` once.
-Status: [ ]
+Status: [x] done 2026-09-11 — tools/gate_search_box.py passed against live Bear
+(@to → @todo, 12 notes all with open todos; #tec → #techne; esc hides the hint);
+full suite 162 passed.

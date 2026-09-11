@@ -9,11 +9,7 @@ Single source of truth for planned and deferred work. The active plan lives in
 - Todo triage: `docs/plans/bjorn-triage.md` (2026-09-08).
 - Export formats: `docs/plans/bjorn-export.md` (2026-09-11).
 - Search highlighting and jump-to-match: `docs/plans/bjorn-search.md` (2026-09-11).
-
-## Active plan
-
-- Search operators in the search box: `docs/plans/bjorn-search-box.md`
-  (approved 2026-09-11).
+- Search operators in the search box: `docs/plans/bjorn-search-box.md` (2026-09-11).
 
 ## Next
 
@@ -32,6 +28,13 @@ Single source of truth for planned and deferred work. The active plan lives in
 
 ## Deferred
 
+- Search-box completion inside a multi-word tag (2026-09-11): the box
+  completes the last space-separated token, so `#serial nu` is seen as `nu`
+  and gets nothing; `#ser` completes to `#serial numbers#` fine. A token
+  scanner that knows an open `#…` spans spaces would fix it.
+- Completion cycles nothing: the first candidate wins and there is no key
+  for the next one (2026-09-11). Textual's Input shows one suggestion; a
+  popup list would be the way to offer more.
 - Search highlights inside fenced code and table cells (2026-09-11): they
   render through their own widgets (`MarkdownFence` keeps highlighted code,
   table cells are separate `Static`s), so the block walk skips them and they
