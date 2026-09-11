@@ -43,7 +43,7 @@ bjorn --demo          # sample notes through a built-in fake bearcli, no Bear ne
 | `F` | fold every tag, or unfold them all when all are folded | `c` / click `▮▮▮` | hide the tag column, then the note column too, then show all three |
 | `t` | triage the workspace's open todos | `r` | refresh now |
 | `]` / `[` | next / previous match in the reader while searching | `?` | help (`esc` `q` `?` close it) |
-| `q` | quit | | |
+| `q` | quit, after a confirm | | |
 
 The **workspace** is a tag subtree that scopes the whole app: the tag tree
 shows only it, the smart views count only inside it, search results are

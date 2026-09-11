@@ -444,6 +444,14 @@ class BjornApp(App[None]):
             self.selection = Selection(view=self.selection.view, tag=self.selection.tag, workspace=self.selection.workspace)
             await self.apply_selection()
 
+    def action_quit(self) -> None:
+        """`q` asks first: it sits next to the navigation keys and is easy to hit."""
+        self.run_worker(self._confirm_quit(), name="quit", exclusive=True)
+
+    async def _confirm_quit(self) -> None:
+        if await self.push_screen_wait(ConfirmScreen("Quit Bjorn?", confirm_label="Quit")):
+            self.exit()
+
     def action_refresh(self) -> None:
         self._forget_content()
         self.run_worker(self._refresh_worker, name="reload", group="reload")

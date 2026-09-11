@@ -268,7 +268,7 @@ Three columns: smart views and tags · notes · the rendered note.
 | `t` | triage: every open todo in the workspace, grouped by note |
 | `c` | cycle the columns: hide tags, then notes too, then show all three (or click ▮▮▮ in the note header) |
 | `r` | refresh from Bear now |
-| `?` | this help · `q` quit |
+| `?` | this help · `q` quit (asks first) |
 
 In triage: `space` marks, `x` ticks the marked (or highlighted) todos in Bear,
 `enter` goes to the note, `b` opens it in Bear at the section, `/` filters,
