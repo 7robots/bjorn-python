@@ -10,10 +10,18 @@ Single source of truth for planned and deferred work. The active plan lives in
 
 ## Next
 
-- PDF export (deferred 2026-09-08): markdown-it-py → HTML with a Bear-like
-  stylesheet → headless Chromium-family browser (`--headless=new --print-to-pdf`,
-  Edge/Chrome autodetected). Verified with Edge: the PDF lands but the process
-  never exits, so poll for the file and terminate it.
+- PDF export (deferred 2026-09-08, approach open 2026-09-11). The tested route
+  is the HTML renderer from the export plan fed to a headless Chromium-family
+  browser (`--headless=new --print-to-pdf`; verified with Edge, which writes the
+  file but never exits, so poll for it and terminate). Jefferson's concern:
+  making export depend on a headless browser being installed and behaving.
+  Alternatives to weigh when this comes up: macOS-native rendering of the HTML
+  through WebKit or an NSAttributedString print operation (a small Swift
+  helper or PyObjC, no browser), or a pure-Python PDF writer at the cost of a
+  dependency and weaker CSS. Decide before building.
+- EPUB export (deferred 2026-09-11): a zip skeleton (mimetype, container.xml,
+  OPF, nav, one XHTML chapter, images) around the export plan's HTML renderer;
+  stdlib only, verify once in Apple Books.
 
 ## Deferred
 
