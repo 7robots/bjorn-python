@@ -110,9 +110,13 @@ def load_state() -> dict:
 
 
 def save_state(state: dict) -> None:
+    """Atomic: `probe` runs two of us at once, and on first use both seed the
+    file; a reader must never see a half-written one."""
     path = state_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(state, indent=2, ensure_ascii=False))
+    tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+    tmp.write_text(json.dumps(state, indent=2, ensure_ascii=False))
+    os.replace(tmp, path)
 
 
 # -- output ----------------------------------------------------------------
