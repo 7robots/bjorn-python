@@ -94,4 +94,7 @@ body-only (`hash-guarded`), asserts the note lists, the reader has highlight
 spans, `]` scrolls and the header reads `match 1/n`, `[` returns, list-row
 highlights appear for a title term, and `esc` clears everything, then the
 full suite `uv run pytest -q` once.
-Status: [ ]
+Status: [x] done 2026-09-11 — tools/gate_search.py passed against live Bear with
+a single-match note (hash-guarded) and a four-block note (textutil); full suite
+144 passed, three times under load. Two teardown races in NoteView.show (the
+post-await scroll and the new highlight pass) fixed in this phase.

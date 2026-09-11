@@ -9,6 +9,7 @@ from textual import events
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.message import Message
 from textual.content import Content
+from textual.css.query import NoMatches
 from textual.widgets import Markdown, Static
 from textual.widgets._markdown import MarkdownBlock, MarkdownFence, MarkdownTable
 
@@ -146,8 +147,13 @@ class NoteView(Vertical):
         self._matches = []
         self._match_index = -1
         pattern = self._pattern
+        try:
+            markdown = self.markdown
+        except NoMatches:
+            # Runs after an awaited Markdown update; the pane may have been torn down meanwhile.
+            return
         if pattern is not None and self._full_text is not None:
-            for block in self.markdown.query(MarkdownBlock):
+            for block in markdown.query(MarkdownBlock):
                 if isinstance(block, (MarkdownFence, MarkdownTable)) or any(
                     isinstance(a, (MarkdownFence, MarkdownTable)) for a in block.ancestors
                 ):
@@ -159,7 +165,7 @@ class NoteView(Vertical):
                 block.set_content(content.highlight_regex(pattern, style=MATCH_STYLE))
                 self._matches.append(block)
         if self._note is not None and self._full_text is not None:
-            self._set_header(self._note, not self._rendered_full, self.markdown.source, self._full_text)
+            self._set_header(self._note, not self._rendered_full, markdown.source, self._full_text)
 
     def reset_match_cursor(self) -> None:
         """The next `jump(1)` lands on the first match."""
@@ -214,7 +220,12 @@ class NoteView(Vertical):
         self._originals, self._matches, self._match_index = {}, [], -1
         self._set_header(note, truncated, shown, text)
         await self.markdown.update(shown)
-        self.scroll_view.scroll_home(animate=False)
+        try:
+            scroll = self.scroll_view
+        except NoMatches:
+            # The pane was torn down during the await (app closing under a slow worker).
+            return truncated
+        scroll.scroll_home(animate=False)
         self._apply_highlight()
         return truncated
 

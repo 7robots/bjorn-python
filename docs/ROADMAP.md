@@ -8,11 +8,7 @@ Single source of truth for planned and deferred work. The active plan lives in
 - Bjorn TUI: `docs/plans/bjorn-tui.md` (2026-09-08).
 - Todo triage: `docs/plans/bjorn-triage.md` (2026-09-08).
 - Export formats: `docs/plans/bjorn-export.md` (2026-09-11).
-
-## Active plan
-
-- Search highlighting and jump-to-match: `docs/plans/bjorn-search.md` (approved
-  2026-09-11).
+- Search highlighting and jump-to-match: `docs/plans/bjorn-search.md` (2026-09-11).
 
 ## Next
 
@@ -37,6 +33,14 @@ Single source of truth for planned and deferred work. The active plan lives in
 
 ## Deferred
 
+- Search highlights inside fenced code and table cells (2026-09-11): they
+  render through their own widgets (`MarkdownFence` keeps highlighted code,
+  table cells are separate `Static`s), so the block walk skips them and they
+  never count as matches. Worth doing only if body matches in code turn out
+  to matter.
+- The reader's match count before the first `]` covers the rendered head
+  only on a truncated note; the jump renders the rest and corrects it
+  (2026-09-11).
 - Persist the body previews (`~/.cache/bjorn/previews.json`, keyed by note id
   and modification stamp) so a cold start lists metadata only, about 0.6 s on
   two thousand notes instead of 1.8 s. The in-memory cache already covers
