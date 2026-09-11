@@ -14,9 +14,7 @@ from textual.widgets._markdown import MarkdownBlock, MarkdownFence, MarkdownTabl
 
 from ..bear import Note
 from ..render import head_of, preprocess
-
-#: Search matches in the reader. Theme-independent.
-MATCH_STYLE = "reverse bold"
+from ..search import MATCH_STYLE
 
 #: Glyph per column count: a hollow block for each hidden column.
 COLUMN_GLYPHS = {3: "▮▮▮", 2: "▯▮▮", 1: "▯▯▮"}

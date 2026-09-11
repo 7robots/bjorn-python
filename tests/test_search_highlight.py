@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from helpers import loaded, titles, wait_until
 
-from bjorn.widgets.note_view import MATCH_STYLE
+from bjorn.search import MATCH_STYLE
 
 
 async def search(app, pilot, query: str) -> None:
@@ -102,3 +102,60 @@ async def test_jump_completes_a_truncated_note_first(make_app):
         await wait_until(lambda: not app.note_view.truncated and app.note_view.match_index == 0)
         assert "Book 119" in app.note_view.matches[0]._content.plain
         assert app.note_view.scroll_view.scroll_y > 0
+
+
+# -- Phase 17: list rows --------------------------------------------------------------
+
+
+def row(app, note_id):
+    from bjorn.widgets.note_list import NoteItem
+
+    return next(i for i in app.note_list.list_view.query(NoteItem) if i.note.id == note_id)
+
+
+def row_highlights(item) -> list[str]:
+    text = item.render()
+    return [text.plain[s.start:s.end] for s in text.spans if str(s.style) == MATCH_STYLE]
+
+
+async def test_row_highlights_a_term_in_the_preview(make_app):
+    app = make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        await loaded(app, pilot)
+        await search(app, pilot, "bulbs")
+        await wait_until(lambda: titles(app) == ["Garden Plan"])
+        await pilot.pause()
+        assert row_highlights(row(app, "NOTE-GARDEN")) == ["bulbs"]
+
+
+async def test_row_highlights_a_term_in_the_title_case_insensitively(make_app):
+    app = make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        await loaded(app, pilot)
+        await search(app, pilot, "garden")
+        await wait_until(lambda: "Garden Plan" in titles(app))
+        await pilot.pause()
+        assert "Garden" in row_highlights(row(app, "NOTE-GARDEN"))
+
+
+async def test_row_with_a_body_only_match_shows_no_highlight(make_app):
+    app = make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        await loaded(app, pilot)
+        await search(app, pilot, "119")
+        await wait_until(lambda: titles(app) == ["Reading Queue"])
+        await pilot.pause()
+        assert row_highlights(row(app, "NOTE-READING")) == []
+
+
+async def test_rows_are_plain_after_escape(make_app):
+    app = make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        await loaded(app, pilot)
+        await search(app, pilot, "bulbs")
+        await wait_until(lambda: titles(app) == ["Garden Plan"])
+        await pilot.press("escape")
+        await wait_until(lambda: len(titles(app)) == 5)
+        await pilot.pause()
+        assert app.note_list._pattern is None
+        assert row_highlights(row(app, "NOTE-GARDEN")) == []

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from datetime import datetime, timezone
 
 from rich.text import Text
@@ -10,6 +12,7 @@ from textual.containers import Vertical
 from textual.message import Message
 from textual.widgets import Input, ListItem, ListView, Static
 
+from ..search import MATCH_STYLE
 from ..bear import Note
 
 
@@ -42,9 +45,11 @@ class NoteItem(ListItem):
 
     PREVIEW_ROWS = 2
 
-    def __init__(self, note: Note) -> None:
+    def __init__(self, note: Note, pattern: re.Pattern[str] | None = None) -> None:
         super().__init__()
         self.note = note
+        #: The active search's terms, highlighted in the title and preview.
+        self.pattern = pattern
 
     def render(self) -> Text:
         width = self.content_size.width or self.size.width
@@ -61,7 +66,11 @@ class NoteItem(ListItem):
             lead.append(f"  ☐ {note.todos}", "dim")
         if note.locked:
             lead.append("  🔒", "dim")
-        return Text("\n").join([title, *self.preview_lines(lead, note.preview, width)])
+        rows = [title, *self.preview_lines(lead, note.preview, width)]
+        if self.pattern is not None:
+            for row in rows:
+                row.highlight_regex(self.pattern, MATCH_STYLE)
+        return Text("\n").join(rows)
 
     def preview_lines(self, lead: Text, body: str, width: int) -> list[Text]:
         """`lead` then `body` flowing on, wrapped to `width` and cut to
@@ -185,6 +194,7 @@ class NoteList(Vertical):
         super().__init__(**kwargs)
         self._notes: list[Note] = []
         self._mounted = 0
+        self._pattern: re.Pattern[str] | None = None
 
     def compose(self) -> ComposeResult:
         yield Static("NOTES", id="notes-header")
@@ -214,6 +224,13 @@ class NoteList(Vertical):
 
     def set_header(self, text: str) -> None:
         self.query_one("#notes-header", Static).update(text)
+
+    def set_pattern(self, pattern: re.Pattern[str] | None) -> None:
+        """Highlight `pattern` in every row, now and as rows are mounted."""
+        self._pattern = pattern
+        for item in self.list_view.query(NoteItem):
+            item.pattern = pattern
+            item.refresh()
 
     async def show_notes(self, notes: list[Note], *, keep_id: str | None = None) -> None:
         """Replace the list; keep the cursor on `keep_id` when it is still present."""
@@ -245,7 +262,7 @@ class NoteList(Vertical):
         wanted = min(len(self._notes), max(self.WINDOW, index + 1 + self.WINDOW // 2))
         wanted = min(len(self._notes), max(wanted, self._mounted))
         if wanted > self._mounted:
-            await self.list_view.extend([NoteItem(n) for n in self._notes[self._mounted:wanted]])
+            await self.list_view.extend([NoteItem(n, self._pattern) for n in self._notes[self._mounted:wanted]])
             self._mounted = wanted
 
     async def extend_window(self) -> None:

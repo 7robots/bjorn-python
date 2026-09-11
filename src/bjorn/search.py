@@ -13,6 +13,9 @@ import re
 
 from .render import TAG_TOKEN_RE
 
+#: Style for a matched term in the reader and the list rows. Theme-independent.
+MATCH_STYLE = "reverse bold"
+
 _TOKEN_RE = re.compile(
     r"""
     (?P<neg>-)?                       # negation prefix

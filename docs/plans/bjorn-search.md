@@ -85,7 +85,7 @@ Intent: `NoteItem.render` highlights the pattern in the title and preview.
 Verify: `uv run pytest tests/test_search_highlight.py -q` (extended): a row
 whose title or preview holds the term carries the highlight style; a row
 with a body-only match shows none; rows are plain after `esc`.
-Status: [ ]
+Status: [x] done 2026-09-11 (9 passed with test_search_highlight.py)
 
 ### Phase 18 — Acceptance gate
 Intent: end-to-end against live Bear, run once, headless through the app.

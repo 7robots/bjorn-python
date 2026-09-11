@@ -213,7 +213,9 @@ class BjornApp(App[None]):
             if self.search_query:
                 header = f"“{self.search_query}”"
             self.note_list.set_header(f"{header} · {len(notes)}")
-            self.note_view.set_pattern(query_pattern(self.search_query) if self.search_query else None)
+            pattern = query_pattern(self.search_query) if self.search_query else None
+            self.note_view.set_pattern(pattern)
+            self.note_list.set_pattern(pattern)
             await self.note_list.show_notes(notes, keep_id=keep_id)
 
     def _warn_duplicates(self) -> None:
