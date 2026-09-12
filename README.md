@@ -1,5 +1,10 @@
 # Bjorn
 
+> **Archived.** This is the original Python/Textual Bjorn. Development has
+> moved to the Rust build at [7robots/bjorn](https://github.com/7robots/bjorn),
+> which reads the same config file and shares the same preview cache. This
+> repo is kept for history and is read-only.
+
 ![Bjorn: smart views and tags, notes list, rendered note](docs/screenshot.svg)
 
 A terminal front end for [Bear](https://bear.app), built with Python and
@@ -129,7 +134,7 @@ tags. Any Textual theme name also works (`nord`, `gruvbox`, `catppuccin-mocha`,
 survives a restart. An unknown name falls back to the default.
 
 The same key means the same thing to the [Rust
-Bjorn](https://github.com/7robots/bjorn-rust), which carries the same three
+Bjorn](https://github.com/7robots/bjorn), which carries the same three
 palettes, so one config file dresses both.
 
 Top-level tags and the smart views carry icons: Nerd Font (Material Design)
