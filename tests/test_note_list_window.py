@@ -4,9 +4,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from textual.app import App
-
 from bjorn.bear import Note
+from bjorn.theme import ThemedApp
 from bjorn.widgets.note_list import NoteItem, NoteList
 
 
@@ -15,7 +14,7 @@ def notes(count: int) -> list[Note]:
     return [Note(id=f"N{i}", title=f"Note {i}", modified=when, preview=f"body {i}") for i in range(count)]
 
 
-class ListApp(App[None]):
+class ListApp(ThemedApp):
     def compose(self):
         yield NoteList(id="note-list")
 

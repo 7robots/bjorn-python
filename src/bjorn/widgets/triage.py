@@ -77,13 +77,30 @@ class TodoItem(ListItem):
             yield Label(self.header, classes="triage-note")
         yield Label(self.render_text(), id="todo-label")
 
+    def _color(self, variable: str) -> str:
+        """A theme colour as a Rich style, so triage follows the palette.
+        Empty (the terminal's own colour) if the row is drawn before the app
+        has resolved its variables."""
+        try:
+            return self.app.theme_variables.get(variable, "")
+        except (RuntimeError, AttributeError):
+            # NoActiveAppError (a RuntimeError) before the row is mounted, or
+            # no theme_variables yet if the stylesheet has not been read.
+            return ""
+
     def render_text(self) -> Text:
         row = self.row
         text = Text()
-        text.append("● " if row.marked else "  ", "yellow" if row.marked else "")
+        text.append("● " if row.marked else "  ", self._color("bjorn-marked") if row.marked else "")
         if self.show_status:
             glyph = STATUS_GLYPH[row.status]
-            text.append(f"{glyph} ", "green" if row.status == "done" else "cyan" if row.status == "added" else "")
+            if row.status == "done":
+                style = self._color("bjorn-reminder-done")
+            elif row.status == "added":
+                style = self._color("bjorn-reminder-added")
+            else:
+                style = ""
+            text.append(f"{glyph} ", style)
         text.append("☐ ", "dim")
         text.append(row.todo.text, "strike dim" if row.status == "done" else "")
         # The note's own H1 is the section for items above any subheading;

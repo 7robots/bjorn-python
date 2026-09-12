@@ -68,3 +68,14 @@ def test_editor_resolution_order():
     assert resolve_editor(Config(editor="hx"), {"EDITOR": "nano", "VISUAL": "code -w"}) == "hx"
     assert editor_available("python3") and not editor_available("no-such-editor-xyz")
     assert editor_available("python3 -c pass")
+
+
+def test_theme_is_read_and_normalised(tmp_path):
+    from bjorn.theme import DEFAULT_THEME
+
+    path = tmp_path / "config.toml"
+    path.write_text('theme = " Red-Graphite "\n')
+    assert Config.load(path).theme == "red-graphite"
+    path.write_text('theme = ""\n')
+    assert Config.load(path).theme == DEFAULT_THEME
+    assert Config.load(tmp_path / "nope.toml").theme == DEFAULT_THEME

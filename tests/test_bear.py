@@ -233,3 +233,39 @@ async def test_attachments_list_and_save(client):
     assert data.startswith(b"\x89PNG\r\n\x1a\n") and len(data) == 70
     with pytest.raises(BearError):
         await client.attachment("NOTE-GARDEN", "missing.png")
+
+
+async def test_previews_survive_a_restart_through_the_cache_file(client, tmp_path):
+    import sys
+
+    from bjorn.bear import PREVIEW_CACHE_VERSION, BearClient
+    from conftest import FAKE
+
+    path = tmp_path / "cache" / "previews.json"
+    first = client.use_preview_cache(path)
+    assert first.preview_cache_dirty, "nothing written yet"
+    await first.snapshot()
+    first.save_preview_cache()
+    assert path.exists() and not first.preview_cache_dirty
+    doc = json.loads(path.read_text())
+    assert doc["version"] == PREVIEW_CACHE_VERSION and doc["bearcli"] == " ".join(client.command)
+    assert not list(path.parent.glob("*.tmp")), "the temp file is renamed into place"
+
+    # A second run, same library: the previews are there before any bearcli call.
+    restarted = BearClient([sys.executable, str(FAKE)]).use_preview_cache(path)
+    assert restarted._previews == first._previews and restarted._previews
+    assert not restarted.preview_cache_dirty
+
+    # Another bearcli's cache is not this one's; nor is a corrupt or
+    # wrong-shaped file. None of them may stop the app from starting.
+    for junk in (
+        json.dumps({"version": PREVIEW_CACHE_VERSION, "bearcli": "elsewhere", "previews": {"N": ["s", "p"]}}),
+        "{not json",
+        "[]",
+        "null",
+        '"a string"',
+    ):
+        path.write_text(junk)
+        cold = BearClient([sys.executable, str(FAKE)]).use_preview_cache(path)
+        assert cold._previews == {}, junk
+        assert cold.preview_cache_dirty

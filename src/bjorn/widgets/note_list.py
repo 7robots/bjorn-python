@@ -127,13 +127,13 @@ class NoteList(Vertical):
         width: 36;
         min-width: 24;
         height: 1fr;
-        border-right: solid $panel-lighten-2;
+        border-right: solid $bjorn-rule;
     }
     NoteList > #notes-header {
         height: 1;
         padding: 0 1;
-        background: $primary-background;
-        color: $success;
+        background: $bjorn-header-background;
+        color: $bjorn-header-foreground;
         text-style: bold;
     }
     NoteList > #notes-header.focused {
@@ -168,7 +168,7 @@ class NoteList(Vertical):
     NoteList > #notes > ListItem {
         padding: 0 1;
         height: 4;
-        border-bottom: solid $panel-lighten-2;
+        border-bottom: solid $bjorn-rule;
     }
     NoteList > #empty {
         display: none;

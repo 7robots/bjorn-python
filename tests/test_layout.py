@@ -161,6 +161,26 @@ async def test_focused_column_header_is_filled_with_the_accent(make_app):
         assert not lit("#sidebar-header") and not lit("#notes-header")
 
 
+async def test_sidebar_cursor_is_solid_when_focused_and_its_own_shade_when_not(make_app):
+    """The sidebar styles its blurred cursor itself (Red Graphite's sidebar is a
+    different surface). That rule carries an ID, so it must be scoped to :blur
+    or it outranks Textual's own :focus cursor and the focused cursor goes
+    translucent."""
+    app = make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        await loaded(app, pilot)
+        tree = app.sidebar.tree
+        solid = app.current_theme.to_color_system().generate()["block-cursor-background"].lower()
+
+        def cursor_bg() -> str:
+            return tree.get_component_rich_style("tree--cursor").bgcolor.triplet.hex.lower()
+
+        tree.focus()
+        await wait_until(lambda: cursor_bg() == solid)
+        app.note_list.list_view.focus()
+        await wait_until(lambda: cursor_bg() != solid)
+
+
 async def test_focus_changes_do_not_restyle_the_whole_note(make_app, monkeypatch):
     """Textual restyles every descendant of a widget on focus; the reader
     holds hundreds of Markdown blocks, so its container opts out. Regression

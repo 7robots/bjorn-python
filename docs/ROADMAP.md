@@ -26,6 +26,15 @@ Single source of truth for planned and deferred work. The active plan lives in
   OPF, nav, one XHTML chapter, images) around the export plan's HTML renderer;
   stdlib only, verify once in Apple Books.
 
+## Closed since
+
+- Persisted body previews: `~/.cache/bjorn/previews.json`, written after every
+  snapshot that moved and read at start-up, so a launch lists metadata only
+  (918 notes: 1331 ms to the first frame, 883 ms once the cache is there).
+- Themes: `theme` in the config. `textual-dark` is still the default;
+  `red-graphite` and `red-graphite-dark` are Bear's Red Graphite, and any
+  Textual theme name works too.
+
 ## Deferred
 
 - Search-box completion inside a multi-word tag (2026-09-11): the box
@@ -43,10 +52,6 @@ Single source of truth for planned and deferred work. The active plan lives in
 - The reader's match count before the first `]` covers the rendered head
   only on a truncated note; the jump renders the rest and corrects it
   (2026-09-11).
-- Persist the body previews (`~/.cache/bjorn/previews.json`, keyed by note id
-  and modification stamp) so a cold start lists metadata only, about 0.6 s on
-  two thousand notes instead of 1.8 s. The in-memory cache already covers
-  every reload after the first (2026-09-10).
 - Rendering a very long note in full (170 KB, ~5 s) is Textual's `Markdown`
   mounting one widget per block; the head-then-rest split hides it while
   browsing. A paged or lazily mounted reader would remove it (2026-09-10).

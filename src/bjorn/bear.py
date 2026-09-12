@@ -17,6 +17,7 @@ import shutil
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
+from pathlib import Path
 from typing import Any, Iterable, Sequence
 
 from .render import preview
@@ -32,6 +33,8 @@ APP_BUNDLE_COMMANDS = (
 
 #: Every metadata field `list` can return. Content is fetched separately.
 LIST_FIELDS = "id,title,locked,tags,length,created,modified,pins,location,todos,done,attachments"
+#: Bumped when the on-disk preview cache's shape changes.
+PREVIEW_CACHE_VERSION = 1
 #: When more notes than this need a fresh preview, one `list` with content is
 #: cheaper than a `cat` apiece.
 PREVIEW_CAT_LIMIT = 24
@@ -247,6 +250,79 @@ class BearClient:
         #: of a `list` with content, so a snapshot lists metadata only and
         #: fetches bodies just for the notes whose stamp moved.
         self._previews: dict[str, tuple[str, str]] = {}
+        #: Where the previews are kept between runs, once `use_preview_cache`
+        #: has been called. Without it every launch is a cold start: the
+        #: preview listing has to read every body, which is most of the second
+        #: a cold start costs.
+        self._preview_cache: Path | None = None
+        #: What was last written, so an unchanged library is not rewritten on
+        #: every poll.
+        self._preview_cache_written: int | None = None
+
+    def use_preview_cache(self, path: Path) -> BearClient:
+        """Keep previews in `path` between runs, and read whatever is there.
+
+        The file is a cache: anything unreadable, or written against another
+        bearcli, is ignored and overwritten. The Rust Bjorn writes the same
+        file in the same shape, so the two warm each other up.
+        """
+        self._preview_cache = path
+        try:
+            doc = json.loads(path.read_text())
+        except (OSError, ValueError):
+            return self
+        if not isinstance(doc, dict):
+            return self
+        if doc.get("version") != PREVIEW_CACHE_VERSION or doc.get("bearcli") != " ".join(self.command):
+            return self
+        entries = doc.get("previews")
+        if isinstance(entries, dict):
+            self._previews = {
+                str(note_id): (str(pair[0]), str(pair[1]))
+                for note_id, pair in entries.items()
+                if isinstance(pair, list) and len(pair) == 2
+            }
+            self._preview_cache_written = self._preview_signature()
+        return self
+
+    @property
+    def preview_cache_dirty(self) -> bool:
+        """Is there anything new to write? Polling takes a snapshot every few
+        seconds and an unchanged library must not rewrite the file each time."""
+        return self._preview_cache is not None and self._preview_signature() != self._preview_cache_written
+
+    def _preview_signature(self, items: list[tuple[str, tuple[str, str]]] | None = None) -> int:
+        if items is None:
+            items = list(self._previews.items())
+        return hash(frozenset((note_id, stamp) for note_id, (stamp, _) in items))
+
+    def save_preview_cache(self) -> None:
+        """Write the previews out, if a cache path was given. A failure is not
+        worth reporting: the next run just runs cold.
+
+        Runs on a worker thread while the next snapshot may be adding previews
+        on the loop, so the map is copied first: `list(dict.items())` is one
+        C call under the GIL, iterating the live dict is not."""
+        if self._preview_cache is None:
+            return
+        items = list(self._previews.items())
+        signature = self._preview_signature(items)
+        doc = {
+            "version": PREVIEW_CACHE_VERSION,
+            "bearcli": " ".join(self.command),
+            "previews": {note_id: list(pair) for note_id, pair in items},
+        }
+        try:
+            self._preview_cache.parent.mkdir(parents=True, exist_ok=True)
+            # Written beside the target and renamed, so a killed process never
+            # leaves half a cache behind. The pid keeps two Bjorns (or the Rust
+            # one) from renaming each other's half-written file into place.
+            temp = self._preview_cache.with_name(f"{self._preview_cache.name}.{os.getpid()}.tmp")
+            temp.write_text(json.dumps(doc))
+            temp.replace(self._preview_cache)
+            self._preview_cache_written = signature
+        except OSError:
+            pass
 
     async def _spawn(self, *args: str, stdin: str | None = None) -> tuple[int, bytes, str]:
         """Run bearcli once: (exit code, raw stdout, decoded stderr)."""

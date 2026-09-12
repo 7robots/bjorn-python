@@ -9,6 +9,7 @@ Every key is optional. Example:
     workspace = "work"
     bearcli = "/usr/local/bin/bearcli"   # optional; default searches PATH, then Bear.app
     icon_style = "auto"          # auto | nerd | emoji | lucide | none
+    theme = "textual-dark"       # textual-dark | red-graphite | red-graphite-dark, or any Textual theme
     mouse_pixels = true          # false works around SwiftTerm-based terminals (Tecolot)
 
     [icons]                      # top-level tag -> Lucide icon name or emoji:<glyph>
@@ -30,6 +31,8 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .theme import DEFAULT_THEME
+
 APP_NAME = "bjorn"
 DEFAULT_EDITOR = "vim"
 DEFAULT_POLL_SECONDS = 5
@@ -43,6 +46,19 @@ def config_dir() -> Path:
 
 def default_config_path() -> Path:
     return config_dir() / "config.toml"
+
+
+def cache_dir() -> Path:
+    """`${XDG_CACHE_HOME:-~/.cache}/bjorn`: derived state only, safe to delete."""
+    base = os.environ.get("XDG_CACHE_HOME", "").strip()
+    root = Path(base).expanduser() if base else Path.home() / ".cache"
+    return root / APP_NAME
+
+
+def preview_cache_path() -> Path:
+    """Previews kept between runs, so a launch takes the warm path. The Rust
+    Bjorn writes the same file, so either one warms the other."""
+    return cache_dir() / "previews.json"
 
 
 @dataclass(slots=True)
@@ -63,6 +79,9 @@ class Config:
     bearcli: str = ""
     icon_style: str = "auto"
     icons: dict[str, str] = field(default_factory=dict)
+    #: Palette name. Bjorn's own are in `theme.py`; Textual's built-ins work too.
+    #: An unknown name falls back to the default, so a typo never stops the app.
+    theme: str = DEFAULT_THEME
     #: Let Textual use SGR-pixel mouse reporting when the terminal supports
     #: in-band resize. Off for terminals that report pixel geometry and mouse
     #: position in different units (SwiftTerm/Tecolot, 2026-09).
@@ -94,6 +113,7 @@ class Config:
         icons = data.get("icons")
         if isinstance(icons, dict):
             cfg.icons = {str(k): str(v) for k, v in icons.items() if isinstance(v, str)}
+        cfg.theme = str(data.get("theme", "") or "").strip().lower() or DEFAULT_THEME
         cfg.mouse_pixels = bool(data.get("mouse_pixels", True))
         section = data.get("reminders")
         if isinstance(section, dict):

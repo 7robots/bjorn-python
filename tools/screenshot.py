@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Render docs/screenshot.svg from an invented library through the fake bearcli.
 
-    uv run python tools/screenshot.py [output.svg]
+    uv run python tools/screenshot.py [output.svg] [theme]
 
 Nothing here touches Bear: the notes are made up and live in a temp state file.
 """
@@ -23,6 +23,7 @@ from bjorn.app import BjornApp  # noqa: E402
 from bjorn.bear import BearClient  # noqa: E402
 from bjorn.config import Config, RemindersConfig  # noqa: E402
 from bjorn.reminders import RemctlClient  # noqa: E402
+from bjorn.theme import DEFAULT_THEME  # noqa: E402
 from bjorn.widgets.triage import TriageScreen  # noqa: E402
 
 FAKE = ROOT / "src" / "bjorn" / "fake_bearcli.py"
@@ -69,7 +70,7 @@ NOTES = [
 ]
 
 
-async def main(out: Path, triage_out: Path | None) -> None:
+async def main(out: Path, triage_out: Path | None, theme: str = DEFAULT_THEME) -> None:
     tmp = Path(tempfile.mkdtemp(prefix="bjorn-shot-"))
     state = tmp / "bear.json"
     state.write_text(json.dumps({"notes": NOTES, "next_id": 1}))
@@ -77,7 +78,7 @@ async def main(out: Path, triage_out: Path | None) -> None:
     os.environ["BJORN_FAKE_REMCTL_STATE"] = str(tmp / "reminders.json")
     client = BearClient([sys.executable, str(FAKE)])
     remctl = RemctlClient([sys.executable, str(FAKE_REMCTL)])
-    config = Config(poll_seconds=0, icon_style="emoji", reminders=RemindersConfig(enabled=True, list="Work"))
+    config = Config(poll_seconds=0, icon_style="emoji", theme=theme, reminders=RemindersConfig(enabled=True, list="Work"))
     app = BjornApp(config, client=client, remctl=remctl, environ={})
     async with app.run_test(size=(132, 38)) as pilot:
         for _ in range(100):
@@ -116,4 +117,4 @@ async def main(out: Path, triage_out: Path | None) -> None:
 if __name__ == "__main__":
     target = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "docs" / "screenshot.svg"
     triage = ROOT / "docs" / "screenshot-triage.svg" if len(sys.argv) <= 1 else None
-    asyncio.run(main(target, triage))
+    asyncio.run(main(target, triage, sys.argv[2] if len(sys.argv) > 2 else DEFAULT_THEME))
