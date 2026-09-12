@@ -283,8 +283,12 @@ class NoteList(Vertical):
         """Mount rows so that `index` has one, in whole windows."""
         wanted = min(len(self._notes), max(self.WINDOW, index + 1 + self.WINDOW // 2))
         wanted = min(len(self._notes), max(wanted, self._mounted))
+        lv = self.list_view
+        if not lv.is_attached:
+            # App is exiting (`q` during a rebuild): Textual refuses mounts from here on.
+            return
         if wanted > self._mounted:
-            await self.list_view.extend([NoteItem(n, self._pattern) for n in self._notes[self._mounted:wanted]])
+            await lv.extend([NoteItem(n, self._pattern) for n in self._notes[self._mounted:wanted]])
             self._mounted = wanted
 
     async def extend_window(self) -> None:
