@@ -123,7 +123,7 @@ class Sidebar(Vertical):
         background: $bjorn-sidebar-background;
         color: $bjorn-sidebar-foreground;
     }
-    Sidebar > #sidebar-tree > .tree--cursor {
+    Sidebar > #sidebar-tree:blur > .tree--cursor {
         background: $bjorn-sidebar-cursor-blurred-background;
         color: $bjorn-sidebar-cursor-blurred-foreground;
     }

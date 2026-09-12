@@ -271,6 +271,8 @@ class BearClient:
             doc = json.loads(path.read_text())
         except (OSError, ValueError):
             return self
+        if not isinstance(doc, dict):
+            return self
         if doc.get("version") != PREVIEW_CACHE_VERSION or doc.get("bearcli") != " ".join(self.command):
             return self
         entries = doc.get("previews")
@@ -289,25 +291,33 @@ class BearClient:
         seconds and an unchanged library must not rewrite the file each time."""
         return self._preview_cache is not None and self._preview_signature() != self._preview_cache_written
 
-    def _preview_signature(self) -> int:
-        return hash(frozenset((note_id, stamp) for note_id, (stamp, _) in self._previews.items()))
+    def _preview_signature(self, items: list[tuple[str, tuple[str, str]]] | None = None) -> int:
+        if items is None:
+            items = list(self._previews.items())
+        return hash(frozenset((note_id, stamp) for note_id, (stamp, _) in items))
 
     def save_preview_cache(self) -> None:
         """Write the previews out, if a cache path was given. A failure is not
-        worth reporting: the next run just runs cold."""
+        worth reporting: the next run just runs cold.
+
+        Runs on a worker thread while the next snapshot may be adding previews
+        on the loop, so the map is copied first: `list(dict.items())` is one
+        C call under the GIL, iterating the live dict is not."""
         if self._preview_cache is None:
             return
-        signature = self._preview_signature()
+        items = list(self._previews.items())
+        signature = self._preview_signature(items)
         doc = {
             "version": PREVIEW_CACHE_VERSION,
             "bearcli": " ".join(self.command),
-            "previews": {note_id: list(pair) for note_id, pair in self._previews.items()},
+            "previews": {note_id: list(pair) for note_id, pair in items},
         }
         try:
             self._preview_cache.parent.mkdir(parents=True, exist_ok=True)
             # Written beside the target and renamed, so a killed process never
-            # leaves half a cache behind.
-            temp = self._preview_cache.with_suffix(".json.tmp")
+            # leaves half a cache behind. The pid keeps two Bjorns (or the Rust
+            # one) from renaming each other's half-written file into place.
+            temp = self._preview_cache.with_name(f"{self._preview_cache.name}.{os.getpid()}.tmp")
             temp.write_text(json.dumps(doc))
             temp.replace(self._preview_cache)
             self._preview_cache_written = signature
