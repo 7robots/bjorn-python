@@ -21,7 +21,7 @@ from textual.timer import Timer
 from textual.widgets import Footer, Input, ListView, Tree
 
 from .bear import BearClient, BearError, Note, NoteContent, Probe, Snapshot, display_tag, normalize_tag, recently_modified, resolve_bearcli
-from .config import Config, editor_available, resolve_editor
+from .config import Config, editor_available, preview_cache_path, resolve_editor
 from .export import FORMATS, ExportError, default_export_path, export_note, extension_for, format_by_id, safe_filename
 from .icons import IconSet
 from .model import Selection, View, duplicate_titles, select_notes
@@ -29,6 +29,7 @@ from .reminders import RemctlClient, RemctlError, join as join_reminders, remctl
 from .render import AUTO_COMPLETE_LINES, BROWSE_LINES
 from .screen import BjornScreen
 from .search import query_pattern, rewrite_subtags
+from .theme import ThemedApp
 from .todos import scan_rows
 from .widgets.modals import ConfirmScreen, FormatPrompt, HelpScreen, NewNotePrompt, TextPrompt
 from .widgets.note_list import NoteList
@@ -67,7 +68,7 @@ class QuietFooter(Footer):
             self.call_after_refresh(self.recompose)
 
 
-class BjornApp(App[None]):
+class BjornApp(ThemedApp):
     TITLE = "Bjorn"
     CSS = """
     Screen {
@@ -111,9 +112,12 @@ class BjornApp(App[None]):
         workspace: str | None = None,
         environ: dict[str, str] | None = None,
     ) -> None:
-        super().__init__()
-        self.config = config or Config()
-        self.client = client or BearClient(resolve_bearcli(self.config.bearcli))
+        config = config or Config()
+        super().__init__(theme=config.theme)
+        self.config = config
+        # Previews from the last run turn what would be a cold snapshot (every
+        # body read to build them) into a warm one.
+        self.client = client or BearClient(resolve_bearcli(self.config.bearcli)).use_preview_cache(preview_cache_path())
         self.remctl: RemctlClient | None = remctl
         if self.remctl is None and self.config.reminders.enabled and remctl_found(self.config.reminders.remctl):
             self.remctl = RemctlClient(resolve_remctl(self.config.reminders.remctl))
@@ -129,6 +133,8 @@ class BjornApp(App[None]):
         # when its note was rewritten does not put the old body back.
         self._cache_epoch = 0
         self._preview_timer: Timer | None = None
+        #: Held so the preview-cache write is not garbage collected mid-flight.
+        self._preview_save: asyncio.Task | None = None
         self._settle_timer: Timer | None = None
         self._poll_timer: Timer | None = None
         self._last_probe: Probe | None = None
@@ -199,6 +205,14 @@ class BjornApp(App[None]):
 
     # -- data --------------------------------------------------------------------
 
+    def _save_previews(self) -> None:
+        """Write the preview cache out in the background, when it has moved.
+        The next launch skips the content listing a cold start needs; this run
+        must not stop for it."""
+        if not self.client.preview_cache_dirty:
+            return
+        self._preview_save = asyncio.create_task(asyncio.to_thread(self.client.save_preview_cache))
+
     async def reload(self, *, keep_id: str | None = None, focus_id: str | None = None) -> None:
         """Take a fresh snapshot and redraw every pane around it."""
         async with self._reload_lock:
@@ -216,6 +230,7 @@ class BjornApp(App[None]):
                 return
             self.snapshot = snapshot
             self.loaded = True
+            self._save_previews()
             if isinstance(probe, Probe):
                 self._last_probe = probe
             if not self.is_running:

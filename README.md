@@ -98,6 +98,7 @@ poll_seconds = 5              # 0 disables the background refresh
 workspace = "work"            # start scoped to this tag
 bearcli = "/usr/local/bin/bearcli"  # optional; default searches PATH, then Bear.app
 icon_style = "auto"           # auto | nerd | emoji | lucide | none
+theme = "textual-dark"        # textual-dark | red-graphite | red-graphite-dark (see below)
 mouse_pixels = true           # set false in Tecolot / SwiftTerm terminals (see below)
 
 [icons]                       # top-level tag -> Lucide icon name, or emoji:<glyph>
@@ -109,6 +110,27 @@ enabled = false               # off by default
 list = "Bear"                 # target list; remctl's default when empty
 due = "today"                 # due date for new reminders; "" for none
 ```
+
+Bjorn keeps one cache file, `~/.cache/bjorn/previews.json` (or under
+`$XDG_CACHE_HOME`): the notes list's body previews, keyed by note id and
+modification stamp. It is what lets a launch list metadata only instead of
+reading every note's body to build the previews again — about a third of the
+time on a thousand notes. Deleting it costs one slow start.
+
+### Themes
+
+`theme` picks the palette. The default, `textual-dark`, is Textual's own and is
+what Bjorn has always drawn in. `red-graphite` and `red-graphite-dark` are
+Bear's Red Graphite: the graphite sidebar beside a white page, one coral red
+(`#CD5654`) on the focused column, the cursor, the bullets, the links and the
+tags. Any Textual theme name also works (`nord`, `gruvbox`, `catppuccin-mocha`,
+`dracula`, `tokyo-night`, `flexoki`, `solarized-light`, `textual-light`, …);
+`^p` then "theme" previews them live, though only the value in the config file
+survives a restart. An unknown name falls back to the default.
+
+The same key means the same thing to the [Rust
+Bjorn](https://github.com/7robots/bjorn-rust), which carries the same three
+palettes, so one config file dresses both.
 
 Top-level tags and the smart views carry icons: Nerd Font (Material Design)
 glyphs when the terminal is Ghostty or WezTerm or a Nerd Font is installed,

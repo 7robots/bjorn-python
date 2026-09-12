@@ -107,19 +107,25 @@ class Sidebar(Vertical):
         width: 30;
         min-width: 20;
         height: 1fr;
-        border-right: solid $panel-lighten-2;
+        border-right: solid $bjorn-rule;
     }
     Sidebar > #sidebar-header {
         height: 1;
         padding: 0 1;
-        background: $primary-background;
-        color: $success;
+        background: $bjorn-sidebar-header-background;
+        color: $bjorn-sidebar-header-foreground;
         text-style: bold;
     }
     Sidebar > #sidebar-tree {
         height: 1fr;
         padding: 0;
         border: none;
+        background: $bjorn-sidebar-background;
+        color: $bjorn-sidebar-foreground;
+    }
+    Sidebar > #sidebar-tree > .tree--cursor {
+        background: $bjorn-sidebar-cursor-blurred-background;
+        color: $bjorn-sidebar-cursor-blurred-foreground;
     }
     Sidebar > #sidebar-header.focused {
         background: $accent;

@@ -60,7 +60,7 @@ class NoteView(Vertical):
     }
     NoteView > #note-bar {
         height: 1;
-        background: $primary-background;
+        background: $bjorn-header-background;
     }
     NoteView #columns-toggle {
         width: auto;
@@ -74,7 +74,7 @@ class NoteView(Vertical):
     NoteView #note-header {
         width: 1fr;
         padding: 0 1 0 0;
-        color: $success;
+        color: $bjorn-header-foreground;
         text-style: bold;
     }
     NoteView > #note-bar.focused {
