@@ -259,7 +259,7 @@ class BearClient:
         #: every poll.
         self._preview_cache_written: int | None = None
 
-    def use_preview_cache(self, path: Path) -> "BearClient":
+    def use_preview_cache(self, path: Path) -> BearClient:
         """Keep previews in `path` between runs, and read whatever is there.
 
         The file is a cache: anything unreadable, or written against another

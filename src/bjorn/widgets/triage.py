@@ -83,7 +83,9 @@ class TodoItem(ListItem):
         has resolved its variables."""
         try:
             return self.app.theme_variables.get(variable, "")
-        except Exception:
+        except (RuntimeError, AttributeError):
+            # NoActiveAppError (a RuntimeError) before the row is mounted, or
+            # no theme_variables yet if the stylesheet has not been read.
             return ""
 
     def render_text(self) -> Text:

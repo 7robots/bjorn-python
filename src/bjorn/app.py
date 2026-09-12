@@ -14,7 +14,7 @@ from collections import OrderedDict
 from pathlib import Path
 
 from textual import on
-from textual.app import App, ComposeResult, SuspendNotSupported
+from textual.app import ComposeResult, SuspendNotSupported
 from textual.binding import Binding
 from textual.containers import Horizontal, VerticalScroll
 from textual.timer import Timer
